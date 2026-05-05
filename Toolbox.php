@@ -7,6 +7,8 @@ use think\Config;
 use think\Exception;
 use think\addons\AddonException;
 use think\addons\Service;
+use fast\Http;
+use think\Cache;
 
 /**
  * FastAdmin 开发工具箱
@@ -74,16 +76,16 @@ class Toolbox extends Backend
                 .tb-hero h2 i { font-size:24px; }
                 .tb-hero-sub { margin:0; color:#b0b0b0; font-size:12px; letter-spacing:1px; }
             </style>
-<div class="toolbox-layout">
-    {$backHtml}
-    <div class="toolbox-content">
-        {$content}
-    </div>
-    <div class="toolbox-footer" style="text-align:center;color:#999;margin-top:30px;padding:15px 0;border-top:1px solid #eee;">
-        FastAdmin Toolbox · FA开发工具箱
-    </div>
-</div>
-HTML;
+            <div class="toolbox-layout">
+                {$backHtml}
+                <div class="toolbox-content">
+                    {$content}
+                </div>
+                <div class="toolbox-footer" style="text-align:center;color:#999;margin-top:30px;padding:15px 0;border-top:1px solid #eee;">
+                    FastAdmin Toolbox · FA开发工具箱
+                </div>
+            </div>
+        HTML;
 
         $html = $this->display($lay);
 
@@ -93,20 +95,20 @@ HTML;
 
         if ($scripts) {
             $scriptTag = <<<'SCRIPT'
-<script>
-(function checkReady() {
-    if (typeof jQuery !== "undefined" && typeof Layer !== "undefined") {
-        (function($, Layer) {
-SCRIPT;
-            $scriptTag .= $scripts;
-            $scriptTag .= <<<'SCRIPT'
-        })(jQuery, Layer);
-    } else {
-        setTimeout(checkReady, 50);
-    }
-})();
-</script>
-SCRIPT;
+                <script>
+                (function checkReady() {
+                    if (typeof jQuery !== "undefined" && typeof Layer !== "undefined") {
+                        (function($, Layer) {
+                SCRIPT;
+                            $scriptTag .= $scripts;
+                            $scriptTag .= <<<'SCRIPT'
+                        })(jQuery, Layer);
+                    } else {
+                        setTimeout(checkReady, 50);
+                    }
+                })();
+                </script>
+            SCRIPT;
             $html = str_replace('</body>', $scriptTag . '</body>', $html);
         }
 
@@ -131,7 +133,7 @@ SCRIPT;
                 ],
                 [
                     'icon'   => 'fa-info-circle',
-                    'title'  => 'PHP 环境信息',
+                    'title'  => '系统环境信息',
                     'desc'   => '查看 PHP、ThinkPHP、FastAdmin 版本及关键扩展状态等服务器环境详情。',
                     'url'    => url('phpinfo'),
                     'status' => 'ready',
@@ -375,23 +377,23 @@ SCRIPT;
                     : 'href="javascript:void(0);" onclick="return false;"';
                 $cls = $t['status'] === 'ready' ? 'tool-card-active' : 'tool-card-disabled';
                 $cards .= <<<CARD
-                <a {$href} class="tool-card {$cls}">
-                    <div class="tool-card-icon" style="background:{$t['color']};">
-                        <i class="fa {$t['icon']}"></i>
-                    </div>
-                    <div class="tool-card-body">
-                        <div class="tool-card-title">{$t['title']} {$badge}</div>
-                        <div class="tool-card-desc">{$t['desc']}</div>
-                    </div>
-                </a>
-CARD;
+                    <a {$href} class="tool-card {$cls}">
+                        <div class="tool-card-icon" style="background:{$t['color']};">
+                            <i class="fa {$t['icon']}"></i>
+                        </div>
+                        <div class="tool-card-body">
+                            <div class="tool-card-title">{$t['title']} {$badge}</div>
+                            <div class="tool-card-desc">{$t['desc']}</div>
+                        </div>
+                    </a>
+                CARD;
             }
             $toolHtml .= <<<HTML
-            <div class="tb-cat-section">
-                <div class="tb-cat-title"><i class="fa fa-cogs"></i> {$catName}</div>
-                <div class="tb-cat-cards">{$cards}</div>
-            </div>
-HTML;
+                <div class="tb-cat-section">
+                    <div class="tb-cat-title"><i class="fa fa-cogs"></i> {$catName}</div>
+                    <div class="tb-cat-cards">{$cards}</div>
+                </div>
+            HTML;
         }
 
         // -------- 速查文档（客户端分页） --------
@@ -409,19 +411,19 @@ HTML;
         $docCards = '';
         foreach ($initDocs as $i => $d) {
             $docCards .= <<<CARD
-            <a class="doc-item" href="{$d['url']}" target="_blank" data-doc-index="{$i}">
-                <div class="doc-item-left">
-                    <div class="doc-item-icon" style="background:{$d['color']};">
-                        <i class="fa {$d['icon']}"></i>
+                <a class="doc-item" href="{$d['url']}" target="_blank" data-doc-index="{$i}">
+                    <div class="doc-item-left">
+                        <div class="doc-item-icon" style="background:{$d['color']};">
+                            <i class="fa {$d['icon']}"></i>
+                        </div>
+                        <div class="doc-item-info">
+                            <div class="doc-item-title">{$d['title']}</div>
+                            <div class="doc-item-desc">{$d['desc']}</div>
+                        </div>
                     </div>
-                    <div class="doc-item-info">
-                        <div class="doc-item-title">{$d['title']}</div>
-                        <div class="doc-item-desc">{$d['desc']}</div>
-                    </div>
-                </div>
-                <span class="doc-item-tag">{$d['tag']}</span>
-            </a>
-CARD;
+                    <span class="doc-item-tag">{$d['tag']}</span>
+                </a>
+            CARD;
         }
 
         $content = <<<HTML
@@ -962,7 +964,7 @@ CARD;
             </style>
 
             <div class="tb-hero">
-                <h2><i class="fa fa-info-circle" style="color:#18bc9c;"></i> PHP 环境信息</h2>
+                <h2><i class="fa fa-info-circle" style="color:#18bc9c;"></i> 系统环境信息</h2>
                 <p class="tb-hero-sub">服务器 PHP 环境与扩展状态一览</p>
             </div>
 
@@ -973,7 +975,7 @@ CARD;
                         <div class="sect-body">
                             <div class="version-row"><div class="v-name">PHP</div><div class="v-val">{$phpVersion}</div></div>
                             <div class="version-row"><div class="v-name">ThinkPHP</div><div class="v-val">{$tpVersion}</div></div>
-                            <div class="version-row"><div class="v-name">FastAdmin</div><div class="v-val">{$faVersion}</div></div>
+                            <div class="version-row"><div class="v-name">FastAdmin</div><div class="v-val">{$faVersion}</div><a href="javascript:void(0);" class="btn btn-text btn-xs btn-checkupdates" >检查更新</a></div>
                         </div>
                     </div>
 
@@ -992,7 +994,268 @@ CARD;
             </div>
         HTML;
 
-        return $this->renderPage('PHP 环境信息 - FastAdmin 工具箱', $content, '', '', true);
+        $scripts = <<<JS
+            $(document).on('click', '.btn-checkupdates', function() {
+                Layer.msg("正在检查更新...", {icon: 16, shade: 0.3, time: 0});
+                $.ajax({
+                    url: Config.toolbox_check_updates_url,
+                    type: "POST",
+                    dataType: "json",
+                    success: function(res) {
+                        Layer.closeAll();
+                        if (res.code === 1) {
+                            var data = res.data;
+                            if (data.has_update) {
+                                var html = "<div style='padding:20px;'>";
+                                html += "<p>当前版本：<strong>" + data.current_version + "</strong></p>";
+                                html += "<p>发现新版本：</p><ul style='padding-left:20px;'>";
+                                data.new_versions.forEach(function(ver) {
+                                    html += "<li><strong>" + ver.version_full + "</strong>:<br>" + ver.changelog.map(function(item) { return "- " + item; }).join("<br>") + "<br>";
+                                    if (ver.security_link) {
+                                        html += "<a href='" + ver.security_link + "' target='_blank'>查看安全修复方法</a><br>";
+                                    }
+                                    html += "<a href='" + ver.download_full + "' target='_blank'>下载完整包</a> | <a href='" + ver.download_patch + "' target='_blank'>下载补丁包</a>";
+                                    html += "</li><hr>";
+                                });
+                                html += "</ul></div>";
+                                Layer.open({
+                                    type: 1,
+                                    title: "更新提示",
+                                    area: ["500px", "400px"],
+                                    content: html,
+                                    btn: ["关闭"]
+                                });
+                            } else {
+                                Layer.msg("当前已是最新版本", {icon: 1});
+                            }
+                        } else {
+                            Layer.msg("检查更新失败: " + (res.msg || ""), {icon: 2});
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Layer.closeAll();
+                        Layer.msg("请求失败: " + (error || status), {icon: 2});
+                    }
+                });
+            });
+        JS;
+        $this->assignconfig('toolbox_check_updates_url', url('checkUpdates'));
+        return $this->renderPage('系统环境信息 - FastAdmin 工具箱', $content, $scripts, '', true);
+    }
+
+    public function checkUpdates()
+    {
+        $this->request->filter(['strip_tags', 'trim']);
+        if (!$this->request->isAjax()) {
+            $this->error(__('请求无效'));
+        }
+
+        // 1. 获取当前系统版本号
+        $currentVersion = config('fastadmin.version');
+        // 提取干净的版本号用于比较 (假设 config('site.version') 格式为 'V1.6.2.20260323')
+        $currentVersionClean = ltrim($currentVersion, 'Vv');
+
+        // 2. 尝试从缓存获取版本列表
+        $versionList = Cache::get('fastadmin_version_list');
+        if (!$versionList) {
+            // 3. 从官网获取并解析版本列表
+            $versionList = $this->fetchVersionsFromOfficial();
+            if (empty($versionList)) {
+                $this->error('获取官方版本信息失败，请检查网络');
+            }
+            // 缓存12小时
+            Cache::set('fastadmin_version_list', $versionList, 43200);
+        }
+
+        // 4. 筛选出新版本
+        $newVersions = [];
+        foreach ($versionList as $ver) {
+            if (version_compare($ver['version_clean'], $currentVersionClean, '>')) {
+                $newVersions[] = $ver;
+            }
+        }
+
+        if (empty($newVersions)) {
+            $this->success('当前已是最新版本', null, ['has_update' => false]);
+        } else {
+            $this->success('发现新版本', null, [
+                'has_update'     => true,
+                'current_version' => $currentVersion,
+                'new_versions'    => $newVersions,
+            ]);
+        }
+    }
+
+    /**
+     * 抓取并解析官网下载页
+     * @return array
+     */
+    protected function fetchVersionsFromOfficial()
+    {
+        $url = 'https://www.fastadmin.net/download.html';
+        $html = $this->getRemoteHtml($url);
+        if (!$html) {
+            return [];
+        }
+
+        libxml_use_internal_errors(true);
+        $dom = new \DOMDocument();
+        $dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+        libxml_clear_errors();
+        $xpath = new \DOMXPath($dom);
+
+        // 1. 定位 id="version-list" 的容器
+        $versionListContainer = $xpath->query("//*[@id='version-list']");
+        if ($versionListContainer->length == 0) {
+            // 如果没找到，回退到原来的全局查找
+            $versionNodes = $xpath->query("//*[contains(text(), '#### V')]");
+        } else {
+            // 在容器内查找所有包含版本号的元素（可能是 h3/h4 或带有 'version-item' 类的 div）
+            $container = $versionListContainer->item(0);
+            // 查找所有标题标签或包含 'V数字' 的元素
+            $versionNodes = $xpath->query(".//*[contains(text(), '#### V')]", $container);
+            if ($versionNodes->length == 0) {
+                // 备用：查找所有 h4 或 h3 元素
+                $versionNodes = $xpath->query(".//h4 | .//h3", $container);
+            }
+        }
+
+        if ($versionNodes->length == 0) {
+            \think\Log::record('未找到版本列表容器或版本节点', 'error');
+            return [];
+        }
+
+        $versions = [];
+        foreach ($versionNodes as $node) {
+            $fullText = trim($node->nodeValue);
+            // 尝试多种正则提取版本号和日期
+            if (preg_match('/####\s+V([\d\.]+)\s+(\d{4}-\d{2}-\d{2})/', $fullText, $match)) {
+                $versionClean = $match[1];
+                $versionFull = 'V' . $versionClean;
+                $date = $match[2];
+            } elseif (preg_match('/V([\d\.]+)(?:\s+(\d{4}-\d{2}-\d{2}))?/', $fullText, $match)) {
+                $versionClean = $match[1];
+                $versionFull = 'V' . $versionClean;
+                $date = $match[2] ?? '';
+            } else {
+                continue;
+            }
+
+            // 获取当前版本节点的下一个兄弟节点（通常是 ul 列表或描述文本）
+            $blockNodes = [];
+            $next = $node->nextSibling;
+            while ($next) {
+                if ($next instanceof \DOMElement) {
+                    // 如果遇到下一个版本标题，停止
+                    $nextText = trim($next->nodeValue);
+                    if (preg_match('/####\s+V|V[\d\.]+/', $nextText) && $next !== $node) {
+                        break;
+                    }
+                    $blockNodes[] = $next;
+                }
+                $next = $next->nextSibling;
+            }
+
+            // 提取更新日志（ul > li 列表）
+            $changelog = [];
+            foreach ($blockNodes as $block) {
+                if ($block->tagName == 'ul') {
+                    $lis = $xpath->query('.//li', $block);
+                    foreach ($lis as $li) {
+                        // 获取 li 内部的 HTML，包括 a 标签
+                        $innerHtml = '';
+                        foreach ($li->childNodes as $child) {
+                            $innerHtml .= $dom->saveHTML($child);
+                        }
+                        $innerHtml = trim($innerHtml);
+                        if ($innerHtml !== '') {
+                            $changelog[] = $innerHtml;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            // 提取安全更新链接（在描述文本中可能有 [查看修复方法](url)）
+            $securityLink = '';
+            foreach ($blockNodes as $block) {
+                if ($block->tagName == 'p' || $block->tagName == 'div') {
+                    if (preg_match('/\[查看修复方法\]\((https?:\/\/[^\)]+)\)/', $block->nodeValue, $linkMatch)) {
+                        $securityLink = $linkMatch[1];
+                        break;
+                    }
+                }
+            }
+
+            // 拼接下载链接
+            $fullDownloadLink = "https://www.fastadmin.net/download/full.html?version={$versionClean}";
+            $patchDownloadLink = "https://www.fastadmin.net/download/patch.html?version={$versionClean}";
+
+            $versions[] = [
+                'version_full'   => $versionFull,
+                'version_clean'  => $versionClean,
+                'date'           => $date,
+                'changelog'      => $changelog,
+                'security_link'  => $securityLink ?: null,
+                'download_full'  => $fullDownloadLink,
+                'download_patch' => $patchDownloadLink,
+            ];
+        }
+        
+        // 按版本号降序排序
+        usort($versions, function ($a, $b) {
+            return version_compare($b['version_clean'], $a['version_clean']);
+        });
+
+        return $versions;
+    }
+
+    /**
+     * 从文本块中提取更新日志项
+     * @param string $text
+     * @return array
+     */
+    protected function parseChangelogFromText($text)
+    {
+        $items = [];
+        // 按 " - " 分割
+        $parts = explode(' - ', $text);
+        foreach ($parts as $part) {
+            $item = trim($part);
+            if (!empty($item)) {
+                $items[] = $item;
+            }
+        }
+        return $items;
+    }
+
+    /**
+     * 从文本块中提取安全更新链接
+     * @param string $text
+     * @return string|null
+     */
+    protected function extractSecurityLinkFromText($text)
+    {
+        // 匹配 [查看修复方法](https://...)
+        if (preg_match('/\[查看修复方法\]\((https?:\/\/[^\)]+)\)/', $text, $linkMatch)) {
+            return $linkMatch[1];
+        }
+        return null;
+    }
+
+    /**
+     * 获取远程页面HTML内容
+     * @param string $url
+     * @return string|false
+     */
+    protected function getRemoteHtml($url)
+    {
+        $response = @file_get_contents($url);
+        if ($response === false) {
+            \think\Log::record('file_get_contents 获取失败', 'error');
+            return false;
+        }
+        return $response;
     }
 
 }
