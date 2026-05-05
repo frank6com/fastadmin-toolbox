@@ -626,6 +626,7 @@ var installerPage = {
                 );
             } else {
                 Layer.msg("插件安装成功", {icon: 1});
+                Fast.api.refreshmenu();
                 self.clearFile();
             }
         });
@@ -643,6 +644,7 @@ var installerPage = {
                 Layer.close(idx);
                 if (res.code === 1) {
                     Layer.msg("测试数据导入成功", {icon: 1});
+                    Fast.api.refreshmenu();
                 } else {
                     Layer.msg("测试数据导入失败: " + (res.msg || ""), {icon: 2});
                 }
