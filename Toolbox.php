@@ -50,12 +50,13 @@ class Toolbox extends Backend
         $this->view->config = $viewConfig;
         $this->assign('config', $viewConfig);
 
-        $this->assignconfig([
+        $assignConfig = [
             'toolbox_index_url'     => url('index'),
             'toolbox_installer_url' => url('installer'),
             'toolbox_phpinfo_url'   => url('phpinfo'),
             'addon_testdata_url'    => url('addon/testdata'),
-        ]);
+        ];
+        $this->assignconfig($assignConfig);
 
         $this->assign('title', $title);
 
@@ -136,73 +137,146 @@ SCRIPT;
                     'status' => 'ready',
                     'color'  => '#18bc9c',
                 ],
-            ],
-            '实用工具' => [
-                [
-                    'icon'   => 'fa-database',
-                    'title'  => '数据库助手',
-                    'desc'   => '常用数据库操作辅助工具。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#3c8dbc',
-                ],
                 [
                     'icon'   => 'fa-file-code-o',
                     'title'  => '代码生成器',
-                    'desc'   => '快速生成标准 CRUD 控制器和模型代码。',
+                    'desc'   => '快速生成标准 CRUD 控制器和模型代码，支持一键生成完整模块。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#f39c12',
                 ],
                 [
-                    'icon'   => 'fa-bug',
-                    'title'  => '调试面板',
-                    'desc'   => '查看日志、SQL 查询记录、请求链路追踪。',
+                    'icon'   => 'fa-sitemap',
+                    'title'  => '菜单管理',
+                    'desc'   => '批量管理后台菜单规则，快速调整菜单层级与排序。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#337ab7',
+                ],
+                [
+                    'icon'   => 'fa-language',
+                    'title'  => '语言包编辑器',
+                    'desc'   => '在线编辑多语言包文件，支持导入导出与对比。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#8e44ad',
+                ],
+                [
+                    'icon'   => 'fa-th-list',
+                    'title'  => '路由列表',
+                    'desc'   => '查看当前应用所有路由规则、请求方法与中间件。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#e67e22',
+                ],
+            ],
+            '实用工具' => [
+                [
+                    'icon'   => 'fa-database',
+                    'title'  => '数据库助手',
+                    'desc'   => '浏览表结构、执行安全 SQL、导出数据字典，快速操作数据库。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#3c8dbc',
+                ],
+                [
+                    'icon'   => 'fa-clock-o',
+                    'title'  => '时间戳转换',
+                    'desc'   => 'Unix 时间戳与日期时间的双向实时互转。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#5bc0de',
+                ],
+                [
+                    'icon'   => 'fa-code',
+                    'title'  => '编码转换',
+                    'desc'   => 'URL 编解码、Base64 编解码等常用编码格式互转。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#d9534f',
                 ],
+                [
+                    'icon'   => 'fa-file-text',
+                    'title'  => 'JSON 工具',
+                    'desc'   => 'JSON 格式化、压缩、转义、树形查看与 JSONPath 查询。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#f39c12',
+                ],
+                [
+                    'icon'   => 'fa-random',
+                    'title'  => '随机字符串生成',
+                    'desc'   => '按规则批量生成随机密码、Token、UUID 等。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#5cb85c',
+                ],
+                [
+                    'icon'   => 'fa-lock',
+                    'title'  => '加密工具',
+                    'desc'   => 'MD5 / SHA1 / SHA256 等常用哈希与对称加密计算。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#e74c3c',
+                ],
+                [
+                    'icon'   => 'fa-eyedropper',
+                    'title'  => '颜色工具',
+                    'desc'   => '颜色选择器、HEX/RGB/HSL 互转、调色板生成。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#8e44ad',
+                ],
+            ],
+            '系统运维' => [
+                [
+                    'icon'   => 'fa-tachometer',
+                    'title'  => '缓存管理',
+                    'desc'   => '查看与清除文件缓存、模板缓存、数据缓存、Redis 缓存。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#e67e22',
+                ],
+                [
+                    'icon'   => 'fa-file-text-o',
+                    'title'  => '日志查看器',
+                    'desc'   => '实时查看系统运行日志、错误日志与 SQL 日志，支持下载。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#d9534f',
+                ],
+                [
+                    'icon'   => 'fa-folder-open',
+                    'title'  => '文件管理器',
+                    'desc'   => '在线浏览与管理项目文件系统，支持编辑、上传、重命名。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#3c8dbc',
+                ],
+                [
+                    'icon'   => 'fa-database',
+                    'title'  => '数据备份',
+                    'desc'   => '一键备份/还原数据库，支持按表选择与定时计划。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#5bc0de',
+                ],
+                [
+                    'icon'   => 'fa-bug',
+                    'title'  => '调试面板',
+                    'desc'   => '查看日志、SQL 查询记录、请求链路追踪与变量输出。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#34495e',
+                ],
             ],
         ];
-
-        $toolHtml = '';
-        foreach ($categories as $catName => $tools) {
-            $cards = '';
-            foreach ($tools as $t) {
-                $badge = $t['status'] === 'ready'
-                    ? '<span class="card-badge badge-ready">可用</span>'
-                    : '<span class="card-badge badge-wip">准备中</span>';
-                $href = $t['status'] === 'ready'
-                    ? 'href="' . $t['url'] . '"'
-                    : 'href="javascript:void(0);" onclick="return false;"';
-                $cls = $t['status'] === 'ready' ? 'tool-card-active' : 'tool-card-disabled';
-                $cards .= <<<CARD
-                <a {$href} class="tool-card {$cls}">
-                    <div class="tool-card-icon" style="background:{$t['color']};">
-                        <i class="fa {$t['icon']}"></i>
-                    </div>
-                    <div class="tool-card-body">
-                        <div class="tool-card-title">{$t['title']} {$badge}</div>
-                        <div class="tool-card-desc">{$t['desc']}</div>
-                    </div>
-                </a>
-CARD;
-            }
-            $toolHtml .= <<<HTML
-            <div class="tb-cat-section">
-                <div class="tb-cat-title"><i class="fa fa-cogs"></i> {$catName}</div>
-                <div class="tb-cat-cards">{$cards}</div>
-            </div>
-HTML;
-        }
-
-        // -------- 速查文档 --------
         $docs = [
             [
                 'icon'  => 'fa-file-text-o',
-                'title' => 'FastAdmin 文档',
+                'title' => 'FastAdmin 框架文档',
                 'desc'  => 'FastAdmin 框架官方文档与社区资源',
-                'url'   => 'https://doc.fastadmin.net/',
+                'url'   => 'https://doc.fastadmin.net/doc',
                 'color' => '#18bc9c',
                 'tag'   => '框架核心',
             ],
@@ -215,20 +289,20 @@ HTML;
                 'tag'   => '框架核心',
             ],
             [
-                'icon'  => 'fa-css3',
-                'title' => 'Bootstrap 3',
-                'desc'  => 'Bootstrap 3 中文文档',
-                'url'   => 'https://v3.bootcss.com/',
-                'color' => '#563d7c',
-                'tag'   => '前端UI',
-            ],
-            [
                 'icon'  => 'fa-flag',
                 'title' => 'Font Awesome 4',
                 'desc'  => 'Font Awesome 4 图标库',
                 'url'   => 'https://fontawesome.com/v4/icons/',
                 'color' => '#228b22',
                 'tag'   => '图标库',
+            ],
+            [
+                'icon'  => 'fa-css3',
+                'title' => 'Bootstrap 3',
+                'desc'  => 'Bootstrap 3 中文文档',
+                'url'   => 'https://v3.bootcss.com/',
+                'color' => '#563d7c',
+                'tag'   => '前端UI',
             ],
             [
                 'icon'  => 'fa-code',
@@ -280,18 +354,62 @@ HTML;
             ],
             [
                 'icon'  => 'fa-bar-chart',
-                'title' => 'ECharts',
+                'title' => 'ECharts 示例',
                 'desc'  => '数据可视化图表库文档',
-                'url'   => 'https://echarts.apache.org/',
+                'url'   => 'https://echarts.apache.org/examples/zh/index.html',
                 'color' => '#e74c3c',
                 'tag'   => '图表库',
             ],
         ];
 
+
+        $toolHtml = '';
+        foreach ($categories as $catName => $tools) {
+            $cards = '';
+            foreach ($tools as $t) {
+                $badge = $t['status'] === 'ready'
+                    ? '<span class="card-badge badge-ready">可用</span>'
+                    : '<span class="card-badge badge-wip">准备中</span>';
+                $href = $t['status'] === 'ready'
+                    ? 'href="' . $t['url'] . '"'
+                    : 'href="javascript:void(0);" onclick="return false;"';
+                $cls = $t['status'] === 'ready' ? 'tool-card-active' : 'tool-card-disabled';
+                $cards .= <<<CARD
+                <a {$href} class="tool-card {$cls}">
+                    <div class="tool-card-icon" style="background:{$t['color']};">
+                        <i class="fa {$t['icon']}"></i>
+                    </div>
+                    <div class="tool-card-body">
+                        <div class="tool-card-title">{$t['title']} {$badge}</div>
+                        <div class="tool-card-desc">{$t['desc']}</div>
+                    </div>
+                </a>
+CARD;
+            }
+            $toolHtml .= <<<HTML
+            <div class="tb-cat-section">
+                <div class="tb-cat-title"><i class="fa fa-cogs"></i> {$catName}</div>
+                <div class="tb-cat-cards">{$cards}</div>
+            </div>
+HTML;
+        }
+
+        // -------- 速查文档（客户端分页） --------
+        $docsJson = json_encode($docs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $pageSize = 15;
+        $totalPages = ceil(count($docs) / $pageSize);
+        $initDocs = array_slice($docs, 0, $pageSize);
+
+        $this->assignconfig([
+            'toolbox_docs' => $docs,
+            'toolbox_doc_pagesize' => $pageSize,
+            'toolbox_doc_totalpages' => $totalPages,
+        ]);
+
         $docCards = '';
-        foreach ($docs as $d) {
+        foreach ($initDocs as $i => $d) {
             $docCards .= <<<CARD
-            <a class="doc-item" href="{$d['url']}" target="_blank">
+            <a class="doc-item" href="{$d['url']}" target="_blank" data-doc-index="{$i}">
                 <div class="doc-item-left">
                     <div class="doc-item-icon" style="background:{$d['color']};">
                         <i class="fa {$d['icon']}"></i>
@@ -377,15 +495,73 @@ CARD;
                     {$toolHtml}
                 </div>
                 <div class="tb-docs-col">
-                    <div class="tb-docs-section">
-                        <div class="tb-docs-title"><i class="fa fa-book"></i> 速查文档</div>
-                        {$docCards}
+                    <div class="tb-docs-section" id="tb-docs-section">
+                        <div class="tb-docs-title"><i class="fa fa-book"></i> 速查文档 <span class="tb-doc-page-info" id="tb-doc-page-info" style="margin-left:auto;font-size:11px;font-weight:400;color:#bbb;"></span></div>
+                        <div id="tb-doc-list">{$docCards}</div>
+                        <div id="tb-doc-pager" class="tb-doc-pager" style="display:none;padding:8px 16px;border-top:1px solid #f4f6f8;text-align:center;">
+                            <button class="btn btn-xs btn-default" id="tb-doc-prev" disabled><i class="fa fa-chevron-left"></i></button>
+                            <span class="tb-doc-page-num" id="tb-doc-page-num" style="margin:0 10px;font-size:12px;color:#666;"></span>
+                            <button class="btn btn-xs btn-default" id="tb-doc-next"><i class="fa fa-chevron-right"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
         HTML;
 
-        return $this->renderPage('工具箱 - FastAdmin 开发工具箱', $content, '', '', false);
+        $scripts = '
+            (function() {
+                var docs = Config.toolbox_docs || [];
+                var pageSize = Config.toolbox_doc_pagesize || 5;
+                var totalPages = Config.toolbox_doc_totalpages || 1;
+                var currentPage = 1;
+
+                if (totalPages <= 1) return;
+
+                var $list = $("#tb-doc-list");
+                var $pager = $("#tb-doc-pager");
+                var $prev = $("#tb-doc-prev");
+                var $next = $("#tb-doc-next");
+                var $pageNum = $("#tb-doc-page-num");
+                var $pageInfo = $("#tb-doc-page-info");
+
+                $pager.show();
+
+                function renderPage(p) {
+                    currentPage = p;
+                    var start = (p - 1) * pageSize;
+                    var slice = docs.slice(start, start + pageSize);
+                    var html = "";
+                    for (var i = 0; i < slice.length; i++) {
+                        var d = slice[i];
+                        html += "<a class=\"doc-item\" href=\"" + d.url + "\" target=\"_blank\">";
+                        html += "<div class=\"doc-item-left\">";
+                        html += "<div class=\"doc-item-icon\" style=\"background:" + d.color + ";\"><i class=\"fa " + d.icon + "\"></i></div>";
+                        html += "<div class=\"doc-item-info\">";
+                        html += "<div class=\"doc-item-title\">" + d.title + "</div>";
+                        html += "<div class=\"doc-item-desc\">" + d.desc + "</div>";
+                        html += "</div></div>";
+                        html += "<span class=\"doc-item-tag\">" + d.tag + "</span>";
+                        html += "</a>";
+                    }
+                    $list.html(html);
+                    $pageNum.text(p + " / " + totalPages);
+                    $pageInfo.text("(" + docs.length + " 篇)");
+                    $prev.prop("disabled", p <= 1);
+                    $next.prop("disabled", p >= totalPages);
+                }
+
+                $prev.on("click", function() {
+                    if (currentPage > 1) renderPage(currentPage - 1);
+                });
+                $next.on("click", function() {
+                    if (currentPage < totalPages) renderPage(currentPage + 1);
+                });
+
+                renderPage(1);
+            })();
+        ';
+
+        return $this->renderPage('工具箱 - FastAdmin 开发工具箱', $content, $scripts, '', false);
     }
 
     /**
