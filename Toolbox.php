@@ -66,6 +66,13 @@ class Toolbox extends Backend
         }
 
         $lay = <<<HTML
+            <style>
+                /* 顶部 Hero */
+                .tb-hero { text-align:center; padding:40px; }
+                .tb-hero h2 { margin:0 0 10px; font-size:22px; font-weight:bold; color:#333; letter-spacing:0.5px; }
+                .tb-hero h2 i { font-size:24px; }
+                .tb-hero-sub { margin:0; color:#b0b0b0; font-size:12px; letter-spacing:1px; }
+            </style>
 <div class="toolbox-layout">
     {$backHtml}
     <div class="toolbox-content">
@@ -197,6 +204,7 @@ HTML;
                 'desc'  => 'FastAdmin 框架官方文档与社区资源',
                 'url'   => 'https://doc.fastadmin.net/',
                 'color' => '#18bc9c',
+                'tag'   => '框架核心',
             ],
             [
                 'icon'  => 'fa-file-text-o',
@@ -204,6 +212,7 @@ HTML;
                 'desc'  => 'ThinkPHP 5.0 完全开发手册',
                 'url'   => 'https://www.kancloud.cn/manual/thinkphp5/118003',
                 'color' => '#5bc0de',
+                'tag'   => '框架核心',
             ],
             [
                 'icon'  => 'fa-css3',
@@ -211,6 +220,7 @@ HTML;
                 'desc'  => 'Bootstrap 3 中文文档',
                 'url'   => 'https://v3.bootcss.com/',
                 'color' => '#563d7c',
+                'tag'   => '前端UI',
             ],
             [
                 'icon'  => 'fa-flag',
@@ -218,6 +228,7 @@ HTML;
                 'desc'  => 'Font Awesome 4 图标库',
                 'url'   => 'https://fontawesome.com/v4/icons/',
                 'color' => '#228b22',
+                'tag'   => '图标库',
             ],
             [
                 'icon'  => 'fa-code',
@@ -225,6 +236,7 @@ HTML;
                 'desc'  => 'jQuery API 文档',
                 'url'   => 'https://api.jquery.com/',
                 'color' => '#0769ad',
+                'tag'   => 'JS库',
             ],
             [
                 'icon'  => 'fa-table',
@@ -232,6 +244,7 @@ HTML;
                 'desc'  => '表格组件文档',
                 'url'   => 'https://bootstrap-table.com/docs/',
                 'color' => '#d9534f',
+                'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-window-maximize',
@@ -239,6 +252,7 @@ HTML;
                 'desc'  => 'Web 弹层组件文档',
                 'url'   => 'https://layer.layui.com/',
                 'color' => '#f39c12',
+                'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-sitemap',
@@ -246,6 +260,7 @@ HTML;
                 'desc'  => '树形控件文档',
                 'url'   => 'https://www.jstree.com/',
                 'color' => '#337ab7',
+                'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-check-square-o',
@@ -253,6 +268,7 @@ HTML;
                 'desc'  => '表单验证组件文档',
                 'url'   => 'https://niceue.com/validator/',
                 'color' => '#5cb85c',
+                'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-search',
@@ -260,6 +276,7 @@ HTML;
                 'desc'  => '动态下拉分页选择插件文档',
                 'url'   => 'https://selectpage.info/',
                 'color' => '#8e44ad',
+                'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-bar-chart',
@@ -267,6 +284,7 @@ HTML;
                 'desc'  => '数据可视化图表库文档',
                 'url'   => 'https://echarts.apache.org/',
                 'color' => '#e74c3c',
+                'tag'   => '图表库',
             ],
         ];
 
@@ -283,79 +301,89 @@ HTML;
                         <div class="doc-item-desc">{$d['desc']}</div>
                     </div>
                 </div>
-                <span class="doc-item-tag"><i class="fa fa-external-link"></i></span>
+                <span class="doc-item-tag">{$d['tag']}</span>
             </a>
 CARD;
         }
 
         $content = <<<HTML
-<style>
-/* ===== 首页样式 ===== */
+            <style>
+            /* ===== 首页样式 ===== */
 
-.tb-hero { text-align:center; padding:16px 0 24px; }
-.tb-hero h2 { margin:0 0 6px; font-size:22px; font-weight:600; color:#333; }
+            /* 左右两栏布局 */
+            .tb-main-row { display:flex; gap:20px; align-items:flex-start; }
+            .tb-tools-col { flex:0 0 66.6%; min-width:0; }
+            .tb-docs-col { flex:1; min-width:270px; }
 
-/* 左右两栏布局 */
-.tb-main-row { display:flex; gap:24px; align-items:flex-start; }
-.tb-tools-col { flex:0 0 66%; min-width:0; }
-.tb-docs-col { flex:1; min-width:280px; }
+            /* 分类区块 */
+            .tb-cat-section { margin-bottom:24px; }
+            .tb-cat-title { font-size:13px; font-weight:600; color:#777; margin:0 0 12px 2px; padding-bottom:8px; border-bottom:2px solid #eef1f5; display:flex; align-items:center; }
+            .tb-cat-title i { color:#18bc9c; margin-right:6px; font-size:14px; }
+            .tb-cat-count { margin-left:auto; font-size:11px; font-weight:400; color:#bbb; }
 
-/* 分类标题 */
-.tb-cat-section { margin-bottom:28px; }
-.tb-cat-title { font-size:14px; font-weight:600; color:#666; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #eee; }
-.tb-cat-title i { color:#18bc9c; margin-right:5px; }
+            /* 分类内卡片网格 */
+            .tb-cat-cards { display:flex; flex-wrap:wrap; gap:12px; }
 
-/* 分类内卡片三列 */
-.tb-cat-cards { display:flex; flex-wrap:wrap; gap:14px; }
+            /* 工具卡片 (增强版) */
+            .tool-card { display:flex; align-items:flex-start; width:calc(33.333% - 8px); min-width:210px; background:#fff; border:1px solid #e8ecf1; border-radius:8px; padding:18px 16px; text-decoration:none; color:inherit; transition:all 0.25s ease; box-sizing:border-box; position:relative; overflow:hidden; }
+            .tool-card::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background:transparent; transition:background 0.25s ease; border-radius:8px 8px 0 0; }
+            .tool-card-active:hover { border-color:#c8d6e5; box-shadow:0 6px 24px rgba(0,0,0,0.06); transform:translateY(-2px); cursor:pointer; }
+            .tool-card-active:hover::before { background:#18bc9c; }
+            .tool-card-disabled { opacity:0.5; cursor:not-allowed; filter:grayscale(30%); }
+            .tool-card-icon { flex-shrink:0; width:46px; height:46px; border-radius:10px; color:#fff; text-align:center; line-height:46px; font-size:20px; margin-right:14px; box-shadow:0 3px 8px rgba(0,0,0,0.1); }
+            .tool-card-body { flex:1; min-width:0; }
+            .tool-card-title { font-size:14px; font-weight:600; color:#333; margin-bottom:4px; display:flex; align-items:center; }
+            .tool-card-desc { font-size:12px; color:#999; line-height:1.5; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 
-/* 工具卡片 */
-.tool-card { display:flex; align-items:flex-start; width:calc(33.333% - 10px); min-width:220px; background:#fff; border:1px solid #e7e7e7; border-radius:6px; padding:16px; text-decoration:none; color:inherit; transition:box-shadow 0.2s,border-color 0.2s; box-sizing:border-box; }
-.tool-card-active:hover { border-color:#18bc9c; box-shadow:0 3px 12px rgba(24,188,156,0.1); cursor:pointer; }
-.tool-card-disabled { opacity:0.55; cursor:not-allowed; }
-.tool-card-icon { flex-shrink:0; width:44px; height:44px; border-radius:8px; color:#fff; text-align:center; line-height:44px; font-size:19px; margin-right:12px; }
-.tool-card-body { flex:1; min-width:0; }
-.tool-card-title { font-size:14px; font-weight:600; color:#333; margin-bottom:3px; }
-.tool-card-desc { font-size:12px; color:#999; line-height:1.5; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+            .badge-ready { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:500; background:#dff0d8; color:#3c763d; vertical-align:middle; margin-left:6px; line-height:1.6; }
+            .badge-wip { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:500; background:#f3f3f3; color:#aaa; vertical-align:middle; margin-left:6px; line-height:1.6; }
 
-.badge-ready { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:500; background:#dff0d8; color:#3c763d; vertical-align:middle; margin-left:5px; }
-.badge-wip { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:500; background:#eee; color:#aaa; vertical-align:middle; margin-left:5px; }
+            /* 文档区 (增强版) */
+            .tb-docs-section { background:#fff; border:1px solid #e8ecf1; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.02); }
+            .tb-docs-title { padding:12px 16px; font-size:14px; font-weight:600; color:#555; border-bottom:1px solid #eef1f5; background:#fafbfc; display:flex; align-items:center; }
+            .tb-docs-title i { color:#18bc9c; margin-right:7px; }
 
-/* 文档区 */
-.tb-docs-section { background:#fff; border:1px solid #e7e7e7; border-radius:6px; overflow:hidden; }
-.tb-docs-title { padding:10px 16px; font-size:14px; font-weight:600; color:#555; border-bottom:1px solid #eee; background:#fafafa; }
-.tb-docs-title i { color:#18bc9c; margin-right:5px; }
+            .doc-item { display:flex; align-items:center; justify-content:space-between; padding:11px 16px; border-bottom:1px solid #f4f6f8; transition:all 0.2s ease; text-decoration:none; color:inherit; }
+            .doc-item:last-child { border-bottom:none; }
+            .doc-item:hover { background:#f8fdfa; text-decoration:none; color:inherit; padding-left:20px; }
 
-.doc-item { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #f0f0f0; transition:background 0.15s; text-decoration:none; color:inherit; }
-.doc-item:last-child { border-bottom:none; }
-.doc-item:hover { background:#f9fdfb; text-decoration:none; color:inherit; }
+            .doc-item-left { display:flex; align-items:center; flex:1; min-width:0; margin-right:10px; }
+            .doc-item-icon { flex-shrink:0; width:32px; height:32px; border-radius:6px; color:#fff; text-align:center; line-height:32px; font-size:14px; margin-right:10px; }
+            .doc-item-info { flex:1; min-width:0; }
+            .doc-item-title { font-size:12px; font-weight:600; color:#444; }
+            .doc-item-desc { font-size:11px; color:#bbb; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-.doc-item-left { display:flex; align-items:center; flex:1; min-width:0; margin-right:10px; }
-.doc-item-icon { flex-shrink:0; width:34px; height:34px; border-radius:6px; color:#fff; text-align:center; line-height:34px; font-size:15px; margin-right:10px; }
-.doc-item-info { flex:1; min-width:0; }
-.doc-item-title { font-size:13px; font-weight:600; color:#444; }
-.doc-item-desc { font-size:11px; color:#aaa; margin-top:1px; }
+            .doc-item-tag { flex-shrink:0; display:inline-block; padding:2px 8px; background:#f5f6f8; border:1px solid #e8ecf1; border-radius:3px; font-size:10px; color:#999; white-space:nowrap; transition:all 0.2s; }
+            .doc-item:hover .doc-item-tag { background:#18bc9c; border-color:#18bc9c; color:#fff; }
 
-.doc-item-tag { flex-shrink:0; display:inline-block; padding:2px 8px; background:#f0f0f0; border-radius:3px; font-size:10px; color:#999; transition:all 0.2s; }
-.doc-item:hover .doc-item-tag { background:#18bc9c; color:#fff; }
-</style>
+            /* 响应式 */
+            @media (max-width:992px) {
+                .tb-main-row { flex-direction:column; }
+                .tb-tools-col { flex:1; }
+                .tool-card { width:calc(50% - 6px); }
+            }
+            @media (max-width:600px) {
+                .tool-card { width:100%; }
+            }
+            </style>
 
-<div class="tb-hero">
-    <h2><i class="fa fa-wrench" style="color:#18bc9c;"></i> FastAdmin 开发工具箱</h2>
-    <p style="margin:0;color:#aaa;font-size:13px;">开发辅助工具集 · 仅调试模式下可用</p>
-</div>
+            <div class="tb-hero">
+                <h2><i class="fa fa-wrench" style="color:#18bc9c;"></i> FastAdmin 开发工具箱</h2>
+                <p class="tb-hero-sub">开发辅助工具集 · 仅调试模式下可用</p>
+            </div>
 
-<div class="tb-main-row">
-    <div class="tb-tools-col">
-        {$toolHtml}
-    </div>
-    <div class="tb-docs-col">
-        <div class="tb-docs-section">
-            <div class="tb-docs-title"><i class="fa fa-book"></i> 速查文档</div>
-            {$docCards}
-        </div>
-    </div>
-</div>
-HTML;
+            <div class="tb-main-row">
+                <div class="tb-tools-col">
+                    {$toolHtml}
+                </div>
+                <div class="tb-docs-col">
+                    <div class="tb-docs-section">
+                        <div class="tb-docs-title"><i class="fa fa-book"></i> 速查文档</div>
+                        {$docCards}
+                    </div>
+                </div>
+            </div>
+        HTML;
 
         return $this->renderPage('工具箱 - FastAdmin 开发工具箱', $content, '', '', false);
     }
@@ -451,237 +479,237 @@ HTML;
 
         // GET: 显示上传界面
         $content = <<<HTML
-<style>
-.tb-installer-wrap { display:flex; justify-content:center; align-items:center; min-height:340px; }
-.tb-installer-box { width:520px; max-width:100%; }
+            <style>
+            .tb-installer-wrap { display:flex; justify-content:center; align-items:center; min-height:340px; }
+            .tb-installer-box { width:520px; max-width:100%; }
 
-.upload-dropzone { border:2px dashed #d2d6de; border-radius:8px; padding:44px 20px; text-align:center; background:#fafafa; cursor:pointer; transition:border-color 0.3s,background 0.3s; margin-bottom:16px; }
-.upload-dropzone:hover, .upload-dropzone.dragover { border-color:#18bc9c; background:#f0faf7; }
-.upload-dropzone .dz-icon { font-size:50px; color:#ccc; margin-bottom:12px; }
-.upload-dropzone .dz-text { font-size:15px; color:#666; }
-.upload-dropzone .dz-hint { font-size:12px; color:#aaa; margin-top:6px; }
+            .upload-dropzone { border:2px dashed #d2d6de; border-radius:8px; padding:44px 20px; text-align:center; background:#fafafa; cursor:pointer; transition:border-color 0.3s,background 0.3s; margin-bottom:16px; }
+            .upload-dropzone:hover, .upload-dropzone.dragover { border-color:#18bc9c; background:#f0faf7; }
+            .upload-dropzone .dz-icon { font-size:50px; color:#ccc; margin-bottom:12px; }
+            .upload-dropzone .dz-text { font-size:15px; color:#666; }
+            .upload-dropzone .dz-hint { font-size:12px; color:#aaa; margin-top:6px; }
 
-.file-bar { display:none; align-items:center; background:#f9f9f9; border:1px solid #e7e7e7; border-radius:4px; padding:10px 14px; margin-bottom:14px; }
-.file-bar .file-icon { font-size:22px; margin-right:10px; color:#f39c12; }
-.file-bar .file-info { flex:1; }
-.file-bar .file-info .file-name { font-size:14px; font-weight:600; color:#333; word-break:break-all; }
-.file-bar .file-info .file-size { font-size:12px; color:#999; }
-.file-bar .file-remove { color:#d9534f; cursor:pointer; font-size:18px; padding:4px 8px; }
-.file-bar .file-remove:hover { color:#c9302c; }
+            .file-bar { display:none; align-items:center; background:#f9f9f9; border:1px solid #e7e7e7; border-radius:4px; padding:10px 14px; margin-bottom:14px; }
+            .file-bar .file-icon { font-size:22px; margin-right:10px; color:#f39c12; }
+            .file-bar .file-info { flex:1; }
+            .file-bar .file-info .file-name { font-size:14px; font-weight:600; color:#333; word-break:break-all; }
+            .file-bar .file-info .file-size { font-size:12px; color:#999; }
+            .file-bar .file-remove { color:#d9534f; cursor:pointer; font-size:18px; padding:4px 8px; }
+            .file-bar .file-remove:hover { color:#c9302c; }
 
-.progress-wrap { display:none; margin-bottom:14px; }
-.btn-install { display:none; width:100%; }
-#toolbox-install-msg { margin-top:10px; text-align:center; }
-</style>
+            .progress-wrap { display:none; margin-bottom:14px; }
+            .btn-install { display:none; width:100%; }
+            #toolbox-install-msg { margin-top:10px; text-align:center; }
+            </style>
 
-<div style="text-align:center;padding:0 0 20px;">
-    <h2 style="margin:0;font-size:20px;font-weight:600;color:#333;"><i class="fa fa-upload" style="color:#18bc9c;"></i> 本地插件安装</h2>
-    <p style="margin:4px 0 0;color:#aaa;font-size:13px;">上传 zip 插件包，自动解压识别并安装</p>
-</div>
-
-<div class="tb-installer-wrap">
-    <div class="tb-installer-box">
-        <div class="upload-dropzone" id="toolbox-dropzone">
-            <div class="dz-icon"><i class="fa fa-cloud-upload"></i></div>
-            <div class="dz-text">拖拽插件包到此处，或点击上传</div>
-            <div class="dz-hint">仅支持 .zip 格式</div>
-        </div>
-        <input type="file" id="toolbox-file-input" accept=".zip" style="display:none;">
-
-        <div class="file-bar" id="toolbox-file-bar">
-            <div class="file-icon"><i class="fa fa-file-archive-o"></i></div>
-            <div class="file-info">
-                <div class="file-name" id="toolbox-file-name"></div>
-                <div class="file-size" id="toolbox-file-size"></div>
+            <div class="tb-hero">
+                <h2><i class="fa fa-upload" style="color:#18bc9c;"></i> 本地插件安装</h2>
+                <p class="tb-hero-sub">上传 zip 插件包，自动解压识别并安装</p>
             </div>
-            <div class="file-remove" id="toolbox-file-remove" title="移除"><i class="fa fa-times-circle"></i></div>
-        </div>
 
-        <div class="progress-wrap" id="toolbox-progress-wrap">
-            <div class="progress">
-                <div class="progress-bar progress-bar-success progress-bar-striped active" id="toolbox-progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%;">0%</div>
+            <div class="tb-installer-wrap">
+                <div class="tb-installer-box">
+                    <div class="upload-dropzone" id="toolbox-dropzone">
+                        <div class="dz-icon"><i class="fa fa-cloud-upload"></i></div>
+                        <div class="dz-text">拖拽插件包到此处，或点击上传</div>
+                        <div class="dz-hint">仅支持 .zip 格式</div>
+                    </div>
+                    <input type="file" id="toolbox-file-input" accept=".zip" style="display:none;">
+
+                    <div class="file-bar" id="toolbox-file-bar">
+                        <div class="file-icon"><i class="fa fa-file-archive-o"></i></div>
+                        <div class="file-info">
+                            <div class="file-name" id="toolbox-file-name"></div>
+                            <div class="file-size" id="toolbox-file-size"></div>
+                        </div>
+                        <div class="file-remove" id="toolbox-file-remove" title="移除"><i class="fa fa-times-circle"></i></div>
+                    </div>
+
+                    <div class="progress-wrap" id="toolbox-progress-wrap">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-success progress-bar-striped active" id="toolbox-progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%;">0%</div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-success btn-install" id="toolbox-btn-install">
+                        <i class="fa fa-download"></i> 开始安装
+                    </button>
+
+                    <div id="toolbox-install-msg"></div>
+                </div>
             </div>
-        </div>
-
-        <button class="btn btn-success btn-install" id="toolbox-btn-install">
-            <i class="fa fa-download"></i> 开始安装
-        </button>
-
-        <div id="toolbox-install-msg"></div>
-    </div>
-</div>
-HTML;
+        HTML;
 
         $scripts = '
-var installerPage = {
-    uploadUrl: Config.toolbox_installer_url,
-    testdataUrl: Config.addon_testdata_url,
-    selectedFile: null,
+            var installerPage = {
+                uploadUrl: Config.toolbox_installer_url,
+                testdataUrl: Config.addon_testdata_url,
+                selectedFile: null,
 
-    init: function() {
-        var self = this;
-        var $dropzone = $("#toolbox-dropzone");
-        var $fileInput = $("#toolbox-file-input");
+                init: function() {
+                    var self = this;
+                    var $dropzone = $("#toolbox-dropzone");
+                    var $fileInput = $("#toolbox-file-input");
 
-        $dropzone.on("click", function() { $fileInput.click(); });
+                    $dropzone.on("click", function() { $fileInput.click(); });
 
-        $dropzone.on("dragover", function(e) {
-            e.preventDefault();
-            $(this).addClass("dragover");
-        });
-        $dropzone.on("dragleave", function(e) {
-            e.preventDefault();
-            $(this).removeClass("dragover");
-        });
-        $dropzone.on("drop", function(e) {
-            e.preventDefault();
-            $(this).removeClass("dragover");
-            var files = e.originalEvent.dataTransfer.files;
-            if (files.length > 0) { self.handleFile(files[0]); }
-        });
+                    $dropzone.on("dragover", function(e) {
+                        e.preventDefault();
+                        $(this).addClass("dragover");
+                    });
+                    $dropzone.on("dragleave", function(e) {
+                        e.preventDefault();
+                        $(this).removeClass("dragover");
+                    });
+                    $dropzone.on("drop", function(e) {
+                        e.preventDefault();
+                        $(this).removeClass("dragover");
+                        var files = e.originalEvent.dataTransfer.files;
+                        if (files.length > 0) { self.handleFile(files[0]); }
+                    });
 
-        $fileInput.on("change", function() {
-            if (this.files.length > 0) { self.handleFile(this.files[0]); }
-        });
+                    $fileInput.on("change", function() {
+                        if (this.files.length > 0) { self.handleFile(this.files[0]); }
+                    });
 
-        $("#toolbox-file-remove").on("click", function() { self.clearFile(); });
-        $("#toolbox-btn-install").on("click", function() { self.doInstall(); });
-    },
+                    $("#toolbox-file-remove").on("click", function() { self.clearFile(); });
+                    $("#toolbox-btn-install").on("click", function() { self.doInstall(); });
+                },
 
-    formatSize: function(bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
-        return (bytes / 1048576).toFixed(1) + " MB";
-    },
+                formatSize: function(bytes) {
+                    if (bytes < 1024) return bytes + " B";
+                    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+                    return (bytes / 1048576).toFixed(1) + " MB";
+                },
 
-    handleFile: function(file) {
-        var ext = file.name.split(".").pop().toLowerCase();
-        if (ext !== "zip") {
-            Layer.msg("仅支持 .zip 格式的插件包", {icon: 0});
-            return;
-        }
-        this.selectedFile = file;
-        $("#toolbox-file-name").text(file.name);
-        $("#toolbox-file-size").text(this.formatSize(file.size));
-        $("#toolbox-file-bar").css("display", "flex");
-        $("#toolbox-btn-install").show();
-        $("#toolbox-progress-wrap").hide();
-        $("#toolbox-install-msg").html("");
-    },
-
-    clearFile: function() {
-        this.selectedFile = null;
-        $("#toolbox-file-input").val("");
-        $("#toolbox-file-bar").hide();
-        $("#toolbox-btn-install").hide();
-        $("#toolbox-progress-wrap").hide();
-        $("#toolbox-install-msg").html("");
-    },
-
-    doInstall: function() {
-        var self = this;
-        if (!self.selectedFile) {
-            Layer.msg("请先选择插件包", {icon: 0});
-            return;
-        }
-
-        var $btnInstall = $("#toolbox-btn-install");
-        var $progressWrap = $("#toolbox-progress-wrap");
-        var $progressBar = $("#toolbox-progress-bar");
-        var $msg = $("#toolbox-install-msg");
-
-        var formData = new FormData();
-        formData.append("file", self.selectedFile);
-
-        $btnInstall.prop("disabled", true).html("<i class=\"fa fa-spinner fa-spin\"></i> 安装中...");
-        $progressWrap.show();
-        $progressBar.css("width", "50%").text("正在上传…");
-
-        self.ajaxSubmit(formData, function(err, res) {
-            if (err) {
-                $progressBar.css("width", "100%").removeClass("progress-bar-success").addClass("progress-bar-danger").text("失败");
-                $msg.html("<span style=\"color:#d9534f;\">" + err + "</span>");
-                $btnInstall.prop("disabled", false).html("<i class=\"fa fa-download\"></i> 开始安装");
-                return;
-            }
-            $progressBar.css("width", "100%").text("安装完成");
-            $btnInstall.prop("disabled", false).html("<i class=\"fa fa-download\"></i> 开始安装");
-            $msg.html("<span style=\"color:#18bc9c;\"><i class=\"fa fa-check-circle\"></i> 插件安装成功！</span>");
-
-            var addonName = (res && res.addon && res.addon.name) ? res.addon.name : "";
-            var hasTestdata = !!(res && res.testdata);
-            if (hasTestdata && addonName) {
-                Layer.confirm(
-                    "安装成功！检测到该插件包含测试数据，是否立即导入？",
-                    { icon: 3, title: "安装成功", btn: ["导入测试数据", "稍后再说"] },
-                    function(index) {
-                        Layer.close(index);
-                        self.importTestdata(addonName);
-                    },
-                    function(index) {
-                        Layer.close(index);
-                        self.clearFile();
-                        Layer.msg("插件已安装，可以稍后手动导入测试数据", {icon: 1});
+                handleFile: function(file) {
+                    var ext = file.name.split(".").pop().toLowerCase();
+                    if (ext !== "zip") {
+                        Layer.msg("仅支持 .zip 格式的插件包", {icon: 0});
+                        return;
                     }
-                );
-            } else {
-                Layer.msg("插件安装成功", {icon: 1});
-                Fast.api.refreshmenu();
-                self.clearFile();
-            }
-        });
-    },
+                    this.selectedFile = file;
+                    $("#toolbox-file-name").text(file.name);
+                    $("#toolbox-file-size").text(this.formatSize(file.size));
+                    $("#toolbox-file-bar").css("display", "flex");
+                    $("#toolbox-btn-install").show();
+                    $("#toolbox-progress-wrap").hide();
+                    $("#toolbox-install-msg").html("");
+                },
 
-    importTestdata: function(addonName) {
-        var self = this;
-        var idx = Layer.load(1, {shade: [0.3, "#000"]});
-        $.ajax({
-            url: self.testdataUrl,
-            type: "POST",
-            data: { name: addonName },
-            dataType: "json",
-            success: function(res) {
-                Layer.close(idx);
-                if (res.code === 1) {
-                    Layer.msg("测试数据导入成功", {icon: 1});
-                    Fast.api.refreshmenu();
-                } else {
-                    Layer.msg("测试数据导入失败: " + (res.msg || ""), {icon: 2});
+                clearFile: function() {
+                    this.selectedFile = null;
+                    $("#toolbox-file-input").val("");
+                    $("#toolbox-file-bar").hide();
+                    $("#toolbox-btn-install").hide();
+                    $("#toolbox-progress-wrap").hide();
+                    $("#toolbox-install-msg").html("");
+                },
+
+                doInstall: function() {
+                    var self = this;
+                    if (!self.selectedFile) {
+                        Layer.msg("请先选择插件包", {icon: 0});
+                        return;
+                    }
+
+                    var $btnInstall = $("#toolbox-btn-install");
+                    var $progressWrap = $("#toolbox-progress-wrap");
+                    var $progressBar = $("#toolbox-progress-bar");
+                    var $msg = $("#toolbox-install-msg");
+
+                    var formData = new FormData();
+                    formData.append("file", self.selectedFile);
+
+                    $btnInstall.prop("disabled", true).html("<i class=\"fa fa-spinner fa-spin\"></i> 安装中...");
+                    $progressWrap.show();
+                    $progressBar.css("width", "50%").text("正在上传…");
+
+                    self.ajaxSubmit(formData, function(err, res) {
+                        if (err) {
+                            $progressBar.css("width", "100%").removeClass("progress-bar-success").addClass("progress-bar-danger").text("失败");
+                            $msg.html("<span style=\"color:#d9534f;\">" + err + "</span>");
+                            $btnInstall.prop("disabled", false).html("<i class=\"fa fa-download\"></i> 开始安装");
+                            return;
+                        }
+                        $progressBar.css("width", "100%").text("安装完成");
+                        $btnInstall.prop("disabled", false).html("<i class=\"fa fa-download\"></i> 开始安装");
+                        $msg.html("<span style=\"color:#18bc9c;\"><i class=\"fa fa-check-circle\"></i> 插件安装成功！</span>");
+
+                        var addonName = (res && res.addon && res.addon.name) ? res.addon.name : "";
+                        var hasTestdata = !!(res && res.testdata);
+                        if (hasTestdata && addonName) {
+                            Layer.confirm(
+                                "安装成功！检测到该插件包含测试数据，是否立即导入？",
+                                { icon: 3, title: "安装成功", btn: ["导入测试数据", "稍后再说"] },
+                                function(index) {
+                                    Layer.close(index);
+                                    self.importTestdata(addonName);
+                                },
+                                function(index) {
+                                    Layer.close(index);
+                                    self.clearFile();
+                                    Layer.msg("插件已安装，可以稍后手动导入测试数据", {icon: 1});
+                                }
+                            );
+                        } else {
+                            Layer.msg("插件安装成功", {icon: 1});
+                            Fast.api.refreshmenu();
+                            self.clearFile();
+                        }
+                    });
+                },
+
+                importTestdata: function(addonName) {
+                    var self = this;
+                    var idx = Layer.load(1, {shade: [0.3, "#000"]});
+                    $.ajax({
+                        url: self.testdataUrl,
+                        type: "POST",
+                        data: { name: addonName },
+                        dataType: "json",
+                        success: function(res) {
+                            Layer.close(idx);
+                            if (res.code === 1) {
+                                Layer.msg("测试数据导入成功", {icon: 1});
+                                Fast.api.refreshmenu();
+                            } else {
+                                Layer.msg("测试数据导入失败: " + (res.msg || ""), {icon: 2});
+                            }
+                            self.clearFile();
+                        },
+                        error: function(xhr, status, error) {
+                            Layer.close(idx);
+                            Layer.msg("请求失败: " + (error || status), {icon: 2});
+                            self.clearFile();
+                        }
+                    });
+                },
+
+                ajaxSubmit: function(formData, callback) {
+                    $.ajax({
+                        url: this.uploadUrl,
+                        type: "POST",
+                        data: formData,
+                        dataType: "json",
+                        processData: false,
+                        contentType: false,
+                        success: function(res) {
+                            if (res.code === 1) {
+                                callback(null, res.data);
+                            } else {
+                                callback(res.msg || "未知错误", null);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            callback("网络请求失败: " + (error || status), null);
+                        }
+                    });
                 }
-                self.clearFile();
-            },
-            error: function(xhr, status, error) {
-                Layer.close(idx);
-                Layer.msg("请求失败: " + (error || status), {icon: 2});
-                self.clearFile();
-            }
-        });
-    },
+            };
 
-    ajaxSubmit: function(formData, callback) {
-        $.ajax({
-            url: this.uploadUrl,
-            type: "POST",
-            data: formData,
-            dataType: "json",
-            processData: false,
-            contentType: false,
-            success: function(res) {
-                if (res.code === 1) {
-                    callback(null, res.data);
-                } else {
-                    callback(res.msg || "未知错误", null);
-                }
-            },
-            error: function(xhr, status, error) {
-                callback("网络请求失败: " + (error || status), null);
-            }
-        });
-    }
-};
-
-installerPage.init();
-';
+            installerPage.init();
+        ';
 
         return $this->renderPage('本地插件安装 - FastAdmin 工具箱', $content, $scripts, '', true);
     }
@@ -737,56 +765,56 @@ installerPage.init();
         }
 
         $content = <<<HTML
-<style>
-.tb-phpinfo-grid { display:flex; gap:24px; flex-wrap:wrap; }
-.tb-phpinfo-col { flex:1 1 400px; min-width:0; }
+            <style>
+            .tb-phpinfo-grid { display:flex; gap:24px; flex-wrap:wrap; }
+            .tb-phpinfo-col { flex:1 1 400px; min-width:0; }
 
-.tb-phpinfo-section { background:#fff; border:1px solid #e7e7e7; border-radius:6px; margin-bottom:20px; overflow:hidden; }
-.tb-phpinfo-section .sect-head { padding:10px 16px; font-size:14px; font-weight:600; color:#555; background:#fafafa; border-bottom:1px solid #eee; }
-.tb-phpinfo-section .sect-head i { margin-right:6px; color:#18bc9c; }
+            .tb-phpinfo-section { background:#fff; border:1px solid #e7e7e7; border-radius:6px; margin-bottom:20px; overflow:hidden; }
+            .tb-phpinfo-section .sect-head { padding:10px 16px; font-size:14px; font-weight:600; color:#555; background:#fafafa; border-bottom:1px solid #eee; }
+            .tb-phpinfo-section .sect-head i { margin-right:6px; color:#18bc9c; }
 
-.version-row { display:flex; padding:12px 16px; align-items:center; border-bottom:1px solid #f0f0f0; }
-.version-row:last-child { border-bottom:none; }
-.version-row .v-name { width:130px; font-weight:600; font-size:14px; color:#555; }
-.version-row .v-val { padding:3px 14px; background:#18bc9c; color:#fff; border-radius:4px; font-weight:700; font-family:monospace; font-size:14px; }
+            .version-row { display:flex; padding:12px 16px; align-items:center; border-bottom:1px solid #f0f0f0; }
+            .version-row:last-child { border-bottom:none; }
+            .version-row .v-name { width:130px; font-weight:600; font-size:14px; color:#555; }
+            .version-row .v-val { padding:3px 14px; background:#18bc9c; color:#fff; border-radius:4px; font-weight:700; font-family:monospace; font-size:14px; }
 
-.ext-grid { display:flex; flex-wrap:wrap; padding:10px 4px; }
-.ext-cell { padding:6px 12px; display:flex; align-items:center; gap:10px; font-size:13px; color:#555; min-width:140px; }
+            .ext-grid { display:flex; flex-wrap:wrap; padding:10px 4px; }
+            .ext-cell { padding:6px 12px; display:flex; align-items:center; gap:10px; font-size:13px; color:#555; min-width:140px; }
 
-.tb-phpinfo-section table { width:100%; border-collapse:collapse; }
-.tb-phpinfo-section table tr:not(:last-child) td { border-bottom:1px solid #f0f0f0; }
-</style>
+            .tb-phpinfo-section table { width:100%; border-collapse:collapse; }
+            .tb-phpinfo-section table tr:not(:last-child) td { border-bottom:1px solid #f0f0f0; }
+            </style>
 
-<div style="text-align:center; padding:0 0 20px;">
-    <h2 style="margin:0; font-size:20px; font-weight:600; color:#333;"><i class="fa fa-info-circle" style="color:#18bc9c;"></i> PHP 环境信息</h2>
-    <p style="margin:4px 0 0; color:#aaa; font-size:13px;">服务器 PHP 环境与扩展状态一览</p>
-</div>
-
-<div class="tb-phpinfo-grid">
-    <div class="tb-phpinfo-col">
-        <div class="tb-phpinfo-section">
-            <div class="sect-head"><i class="fa fa-code"></i>核心版本</div>
-            <div class="sect-body">
-                <div class="version-row"><div class="v-name">PHP</div><div class="v-val">{$phpVersion}</div></div>
-                <div class="version-row"><div class="v-name">ThinkPHP</div><div class="v-val">{$tpVersion}</div></div>
-                <div class="version-row"><div class="v-name">FastAdmin</div><div class="v-val">{$faVersion}</div></div>
+            <div class="tb-hero">
+                <h2><i class="fa fa-info-circle" style="color:#18bc9c;"></i> PHP 环境信息</h2>
+                <p class="tb-hero-sub">服务器 PHP 环境与扩展状态一览</p>
             </div>
-        </div>
 
-        <div class="tb-phpinfo-section">
-            <div class="sect-head"><i class="fa fa-puzzle-piece"></i>关键扩展</div>
-            <div class="sect-body"><div class="ext-grid">{$extRows}</div></div>
-        </div>
-    </div>
+            <div class="tb-phpinfo-grid">
+                <div class="tb-phpinfo-col">
+                    <div class="tb-phpinfo-section">
+                        <div class="sect-head"><i class="fa fa-code"></i>核心版本</div>
+                        <div class="sect-body">
+                            <div class="version-row"><div class="v-name">PHP</div><div class="v-val">{$phpVersion}</div></div>
+                            <div class="version-row"><div class="v-name">ThinkPHP</div><div class="v-val">{$tpVersion}</div></div>
+                            <div class="version-row"><div class="v-name">FastAdmin</div><div class="v-val">{$faVersion}</div></div>
+                        </div>
+                    </div>
 
-    <div class="tb-phpinfo-col">
-        <div class="tb-phpinfo-section">
-            <div class="sect-head"><i class="fa fa-server"></i>服务器信息</div>
-            <div class="sect-body"><table>{$serverRows}</table></div>
-        </div>
-    </div>
-</div>
-HTML;
+                    <div class="tb-phpinfo-section">
+                        <div class="sect-head"><i class="fa fa-puzzle-piece"></i>关键扩展</div>
+                        <div class="sect-body"><div class="ext-grid">{$extRows}</div></div>
+                    </div>
+                </div>
+
+                <div class="tb-phpinfo-col">
+                    <div class="tb-phpinfo-section">
+                        <div class="sect-head"><i class="fa fa-server"></i>服务器信息</div>
+                        <div class="sect-body"><table>{$serverRows}</table></div>
+                    </div>
+                </div>
+            </div>
+        HTML;
 
         return $this->renderPage('PHP 环境信息 - FastAdmin 工具箱', $content, '', '', true);
     }
