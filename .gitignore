@@ -1,5 +1,6 @@
 *
 !Toolbox.php
 !.gitignore
+!/assets/
 !/assets/**
 !README.md
