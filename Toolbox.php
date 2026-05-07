@@ -9,6 +9,7 @@ use think\addons\AddonException;
 use think\addons\Service;
 use fast\Http;
 use think\Cache;
+use fast\Random;
 
 /**
  * FastAdmin 开发工具箱
@@ -134,20 +135,20 @@ class Toolbox extends Backend
                     'color'  => '#18bc9c',
                 ],
                 [
+                    'icon'   => 'fa-key',
+                    'title'  => '密码生成器',
+                    'desc'   => '密码加密生成工具自定义盐值。',
+                    'url'    => url('password'),
+                    'status' => 'ready',
+                    'color'  => '#337ab7',
+                ],
+                [
                     'icon'   => 'fa-magic',
                     'title'  => '初始化工具',
                     'desc'   => '引导完成基础配置，方便快速上手开发或部署。',
                     'url'    => url('initwizard'),
                     'status' => 'wip',
                     'color'  => '#5bc0de',
-                ],
-                [
-                    'icon'   => 'fa-key',
-                    'title'  => '密码生成器',
-                    'desc'   => '密码加密生成工具自定义盐值。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#337ab7',
                 ],
                 [
                     'icon'   => 'fa-cubes',
@@ -683,6 +684,112 @@ class Toolbox extends Backend
         ';
 
         return $this->renderPage('工具箱 - FastAdmin 开发工具箱', $content, $scripts, '', false);
+    }
+
+    /**
+     * 密码生成器
+     */
+    public function password()
+    {
+        if ($this->request->isPost()) {
+            $this->token();
+            $params = $this->request->post("row/a");
+            $salt = Random::alnum();
+            $password = $this->auth->getEncryptPassword($params['password'], $salt);
+            $token = $this->request->token('__token__', 'sha1');
+            $this->success('生成成功', null, ['password' => $password, 'salt' => $salt, 'token' => $token]);
+        }
+        
+        $content = <<<HTML
+            <style>
+            .tb-password-wrap { max-width:600px; margin:40px auto; padding:20px; background:#fff; border:1px solid #e8ecf1; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+            .tb-password-wrap h3 { text-align:center; color:#18bc9c; margin-bottom:20px; }
+            .form-group { margin-bottom:16px; }
+            .form-group label { display:block; font-size:13px; color:#555; margin-bottom:6px; }
+            .form-group input[type="text"] { width:100%; padding:8px 12px; border:1px solid #d2d6de; border-radius:4px; transition:border-color 0.3s ease; }
+            .form-group input[type="text"]:focus { border-color:#18bc9c; outline:none; }
+            .btn-generate { display:block; width:100%; padding:10px 0; background:#18bc9c; color:#fff; font-size:14px; font-weight:600; border:none; border-radius:4px; cursor:pointer; transition:bg-color 0.3s ease; }
+            .btn-generate:hover { background:#15a589; }
+            .result { margin-top:20px; padding:12px 16px; background:#f5f6f8; border:1px solid #e8ecf1; border-radius:4px; word-break:break-all; position:relative;}
+            .result-label { position:absolute; top:-10px; left:10px; background:#18bc9c;color:#fff;padding:2px 6px;font-size:10px;border-radius:3px;}
+            </style>
+
+            <div class="tb-hero">
+                <h2><i class="fa fa-key" style="color:#18bc9c;"></i> 密码生成器</h2>
+                <p class="tb-hero-sub">支持根据自定义字符串或随机生成数据库密码及密码盐</p>
+            </div>
+            <div class="tb-password-wrap">
+                {:token()}
+                <div class="form-group">
+                    <label for="code">密码</label>
+                    <input type="text" id="code" value="" placeholder="请输入密码，留空则为随机取值">
+                </div>
+                <div class="form-group">
+                    <label for="">随机选项</label>
+                    <input type="checkbox" id="include-uppercase" checked> 包含大写字母
+                    <input type="checkbox" id="include-lowercase" checked> 包含小写字母
+                    <input type="checkbox" id="include-numbers" checked> 包含数字
+                    <input type="checkbox" id="include-symbols"> 包含特殊字符
+                </div>
+                <button class="btn-generate" id="btn-generate">生成</button>
+                <div class="result" id="result" style="display:none;">
+                    <div class="result-label">生成结果</div>
+                    <div id="result-text"></div>
+                </div>
+            </div>
+        HTML;
+        $scripts = '
+            (function() {
+                function generatePassword(length, options) {
+                    var charset = "";
+                    if (options.includeUppercase) charset += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                    if (options.includeLowercase) charset += "abcdefghijklmnopqrstuvwxyz";
+                    if (options.includeNumbers) charset += "0123456789";
+                    if (options.includeSymbols) charset += "!@#$%^&*()_+~`|}{[]:;?><,./-=";
+
+                    if (!charset) return "";
+
+                    var password = "";
+                    for (var i = 0; i < length; i++) {
+                        var randomIndex = Math.floor(Math.random() * charset.length);
+                        password += charset[randomIndex];
+                    }
+                    return password;
+                }
+
+                $("#code").on("change input", function() {
+                    if ($(this).val().trim()) {
+                        $("#include-uppercase, #include-lowercase, #include-numbers, #include-symbols").prop("disabled", true);
+                    } else {
+                        $("#include-uppercase, #include-lowercase, #include-numbers, #include-symbols").prop("disabled", false);
+                    }
+                });
+                $("#btn-generate").on("click", function() {
+                    var options = {
+                        includeUppercase: $("#include-uppercase").is(":checked"),
+                        includeLowercase: $("#include-lowercase").is(":checked"),
+                        includeNumbers: $("#include-numbers").is(":checked"),
+                        includeSymbols: $("#include-symbols").is(":checked")
+                    };
+                    var code = $("#code").val().trim() || generatePassword(12, options);
+                    $.post("", { row: { password: code }, __token__: $("input[name=__token__]").val() }, function(res) {
+                        if (res.code !== 1) {
+                            alert("生成失败: " + res.msg);
+                            return;
+                        }
+                        var data = res.data || {};
+                        var password = data.password || "";
+                        var salt = data.salt || "";
+                        $("#result-text").html("密码：" + code + "<br/>" + "加密后：" + password + "<br/>" + (salt ? "盐: " + salt + "" : ""));
+                        $("#result").fadeIn();
+                        $("input[name=__token__]").val(data.token);
+                    });
+                    
+                });
+            })();
+        ';
+        return $this->renderPage('密码生成器 - FastAdmin 开发工具箱', $content, $scripts, '', true);
+
     }
 
     /**
