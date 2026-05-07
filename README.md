@@ -17,10 +17,10 @@
   - Linux 系统可以在项目根目录下通过`curl`或`wget`使用下面的命令进行下载部署：
   ```bash
   # 使用 curl 下载
-  curl -o application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin_toolbox/master/Toolbox.php
+  curl -o application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin-toolbox/master/Toolbox.php
   
   # 使用 wget 下载
-  wget -O application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin_toolbox/master/Toolbox.php
+  wget -O application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin-toolbox/master/Toolbox.php
   ```
 - 访问内置页面：
   - **工具箱面板**：在后台管理地址后追加 `/toolbox/index` 路径访问即可打开工具箱面板查看可使用的工具。
