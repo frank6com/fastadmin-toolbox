@@ -1,6 +1,6 @@
-# FastAdmin Toolbox FA开发工具箱
+# FastAdmin Toolbox 开发工具箱
 
-> 这是为 FastAdmin 开发的一个工具集合单控制器工具箱，提供了各种实用功能，帮助开发者更高效地快速完成 FastAdmin 的基础配置、文档查询、应用开发及系统维护。
+> 这是为 FastAdmin 以单控制器方式实现的开发常用工具集，提供了各种实用功能，帮助开发者更高效地快速完成 FastAdmin 的基础配置、文档查询、应用开发及系统维护。
 
 ![开发工具箱首页](assets/images/preview_index.png)
 
