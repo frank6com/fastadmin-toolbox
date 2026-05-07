@@ -22,6 +22,8 @@ class Toolbox extends Backend
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
 
+    protected $debug = false;
+
     public function _initialize()
     {
         parent::_initialize();
@@ -65,7 +67,7 @@ class Toolbox extends Backend
         $backHtml = '';
         if ($showBack) {
             $backUrl = $backUrl ?: url('index');
-            $backHtml = '<a href="' . $backUrl . '" class="btn btn-default back-btn" style="margin-bottom:15px;"><i class="fa fa-arrow-left"></i> 工具箱首页</a>';
+            $backHtml = '<a href="' . $backUrl . '" class="btn btn-default back-btn btn-addtabs" style="margin-bottom:15px;"><i class="fa fa-arrow-left"></i> 工具箱首页</a>';
         }
 
         $lay = <<<HTML
@@ -124,14 +126,6 @@ class Toolbox extends Backend
         $categories = [
             '开发辅助' => [
                 [
-                    'icon'   => 'fa-upload',
-                    'title'  => '本地插件安装',
-                    'desc'   => '上传 zip 包离线安装插件，自动解压识别，支持安装后导入测试数据。',
-                    'url'    => url('installer'),
-                    'status' => 'ready',
-                    'color'  => '#18bc9c',
-                ],
-                [
                     'icon'   => 'fa-info-circle',
                     'title'  => '系统环境信息',
                     'desc'   => '查看 PHP、ThinkPHP、FastAdmin 版本及关键扩展状态等服务器环境详情。',
@@ -140,20 +134,60 @@ class Toolbox extends Backend
                     'color'  => '#18bc9c',
                 ],
                 [
-                    'icon'   => 'fa-file-code-o',
-                    'title'  => '代码生成器',
-                    'desc'   => '快速生成标准 CRUD 控制器和模型代码，支持一键生成完整模块。',
+                    'icon'   => 'fa-magic',
+                    'title'  => '初始化工具',
+                    'desc'   => '引导完成基础配置，方便快速上手开发或部署。',
+                    'url'    => url('initwizard'),
+                    'status' => 'wip',
+                    'color'  => '#5bc0de',
+                ],
+                [
+                    'icon'   => 'fa-key',
+                    'title'  => '密码生成器',
+                    'desc'   => '密码加密生成工具自定义盐值。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#337ab7',
+                ],
+                [
+                    'icon'   => 'fa-cubes',
+                    'title'  => '前端组件调试器',
+                    'desc'   => '可以快速测试和调试内置的前端组件（如表格、表单、弹窗等）的功能和样式。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#e74c3c',
+                ],
+                [
+                    'icon'   => 'fa-bar-chart',
+                    'title'  => 'ECharts 可视化工具',
+                    'desc'   => '基于 Apache ECharts 的在线图表设计与调试工具，支持导出配置代码。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#f39c12',
                 ],
                 [
+                    'icon'   => 'fa-table',
+                    'title'  => '表格组件调试器',
+                    'desc'   => '可以快速测试和调试内置的表格组件的功能和样式，支持生成配置代码。',
+                    'url'    => url('table'),
+                    'status' => 'wip',
+                    'color'  => '#f39c12',
+                ],
+                [
                     'icon'   => 'fa-sitemap',
-                    'title'  => '菜单管理',
-                    'desc'   => '批量管理后台菜单规则，快速调整菜单层级与排序。',
+                    'title'  => '菜单管理器',
+                    'desc'   => '可以方便的对菜单进行导入导出操作，方便插件开发使用。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#337ab7',
+                ],
+                [
+                    'icon'   => 'fa-cubes',
+                    'title'  => '模型构建工具',
+                    'desc'   => '可以方便的对模型常用功能进行快速构建',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#e74c3c',
                 ],
                 [
                     'icon'   => 'fa-language',
@@ -164,19 +198,51 @@ class Toolbox extends Backend
                     'color'  => '#8e44ad',
                 ],
                 [
+                    'icon'   => 'fa-upload',
+                    'title'  => '插件安装器',
+                    'desc'   => '上传 zip 包离线安装插件，自动解压识别，支持安装后导入测试数据。',
+                    'url'    => url('installer'),
+                    'status' => 'hidden',
+                    'color'  => '#18bc9c',
+                ],
+                [
                     'icon'   => 'fa-th-list',
-                    'title'  => '路由列表',
+                    'title'  => '路由管理器',
                     'desc'   => '查看当前应用所有路由规则、请求方法与中间件。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#e67e22',
                 ],
+                [
+                    'icon'   => 'fa-file-code-o',
+                    'title'  => '上传检测器',
+                    'desc'   => '检测上传文件的类型、大小、内容等，确保上传文件的安全性。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#d9534f',
+                ],
+                [
+                    'icon'   => 'fa-exchange',
+                    'title'  => '表前缀处理器',
+                    'desc'   => '表结构导出转换表前缀，方便迁移部署到不同环境的数据库。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#5cb85c',
+                ],
+                [
+                    'icon'   => 'fa-code',
+                    'title'  => '代码片段管理器',
+                    'desc'   => '管理和组织常用的代码片段，提高开发效率。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#34495e',
+                ],
             ],
             '实用工具' => [
                 [
-                    'icon'   => 'fa-database',
-                    'title'  => '数据库助手',
-                    'desc'   => '浏览表结构、执行安全 SQL、导出数据字典，快速操作数据库。',
+                    'icon'   => 'fa-terminal',
+                    'title'  => '正则表达式工具',
+                    'desc'   => '正则表达式在线测试与调试，支持常用正则语法高亮与示例库。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#3c8dbc',
@@ -198,28 +264,20 @@ class Toolbox extends Backend
                     'color'  => '#d9534f',
                 ],
                 [
-                    'icon'   => 'fa-file-text',
-                    'title'  => 'JSON 工具',
-                    'desc'   => 'JSON 格式化、压缩、转义、树形查看与 JSONPath 查询。',
+                    'icon'   => 'fa-exchange',
+                    'title'  => 'WS 调试工具',
+                    'desc'   => 'WebSocket 在线测试工具，支持发送消息、查看响应与连接状态。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#f39c12',
                 ],
                 [
-                    'icon'   => 'fa-random',
-                    'title'  => '随机字符串生成',
-                    'desc'   => '按规则批量生成随机密码、Token、UUID 等。',
+                    'icon'   => 'fa-image',
+                    'title'  => '图转Base64工具',
+                    'desc'   => '将图片文件转换为Base64编码字符串，方便在HTML中直接使用。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#5cb85c',
-                ],
-                [
-                    'icon'   => 'fa-lock',
-                    'title'  => '加密工具',
-                    'desc'   => 'MD5 / SHA1 / SHA256 等常用哈希与对称加密计算。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#e74c3c',
                 ],
                 [
                     'icon'   => 'fa-eyedropper',
@@ -231,14 +289,6 @@ class Toolbox extends Backend
                 ],
             ],
             '系统运维' => [
-                [
-                    'icon'   => 'fa-tachometer',
-                    'title'  => '缓存管理',
-                    'desc'   => '查看与清除文件缓存、模板缓存、数据缓存、Redis 缓存。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#e67e22',
-                ],
                 [
                     'icon'   => 'fa-file-text-o',
                     'title'  => '日志查看器',
@@ -272,6 +322,8 @@ class Toolbox extends Backend
                     'color'  => '#34495e',
                 ],
             ],
+            '插件功能增强' => [
+            ]
         ];
         $docs = [
             [
@@ -299,6 +351,38 @@ class Toolbox extends Backend
                 'tag'   => '图标库',
             ],
             [
+                'icon'  => 'fa-table',
+                'title' => '一张图解析表格列表的功能',
+                'desc'  => '一张图解析FastAdmin中的表格列表的功能',
+                'url'   => 'https://ask.fastadmin.net/article/323.html',
+                'color' => '#18bc9c',
+                'tag'   => '教程',
+            ],
+            [
+                'icon'  => 'fa-th',
+                'title' => '一张图解析FormBuilder表单生成器',
+                'desc'  => '一张图解析FastAdmin中的FormBuilder表单生成器',
+                'url'   => 'https://ask.fastadmin.net/article/5567.html',
+                'color' => '#18bc9c',
+                'tag'   => '教程',
+            ],
+            [
+                'icon'  => 'fa-window-maximize',
+                'title' => '一张图解析弹出窗口的功能',
+                'desc'  => '一张图解析FastAdmin中的弹出窗口的功能',
+                'url'   => 'https://ask.fastadmin.net/article/2527.html',
+                'color' => '#18bc9c',
+                'tag'   => '教程',
+            ],
+            [
+                'icon'  => 'fa-bar-chart',
+                'title' => 'ECharts 示例',
+                'desc'  => '数据可视化图表库文档',
+                'url'   => 'https://echarts.apache.org/examples/zh/index.html',
+                'color' => '#e74c3c',
+                'tag'   => '图表库',
+            ],
+            [
                 'icon'  => 'fa-css3',
                 'title' => 'Bootstrap 3',
                 'desc'  => 'Bootstrap 3 中文文档',
@@ -310,15 +394,39 @@ class Toolbox extends Backend
                 'icon'  => 'fa-code',
                 'title' => 'jQuery API',
                 'desc'  => 'jQuery API 文档',
-                'url'   => 'https://api.jquery.com/',
+                'url'   => 'https://v3.bootcss.com/css/',
                 'color' => '#0769ad',
                 'tag'   => 'JS库',
+            ],
+            [
+                'icon'  => 'fa-book',
+                'title' => 'FastAdmin 开发者文档',
+                'desc'  => 'FastAdmin 开发者文档与教程',
+                'url'   => 'https://doc.fastadmin.net/developer',
+                'color' => '#18bc9c',
+                'tag'   => '框架核心',
+            ],
+            [
+                'icon'  => 'fa-book',
+                'title' => '插件开发简明开发教程',
+                'desc'  => 'FastAdmin插件开发教程之简明开发教程',
+                'url'   => 'https://ask.fastadmin.net/article/324.html',
+                'color' => '#18bc9c',
+                'tag'   => '教程',
+            ],
+            [
+                'icon'  => 'fa-plug',
+                'title' => 'FastAdmin 插件标识检测',
+                'desc'  => 'FastAdmin 应用插件标识检测',
+                'url'   => 'https://www.fastadmin.net/developer/idcheck.html',
+                'color' => '#18bc9c',
+                'tag'   => '框架核心',
             ],
             [
                 'icon'  => 'fa-table',
                 'title' => 'Bootstrap Table',
                 'desc'  => '表格组件文档',
-                'url'   => 'https://bootstrap-table.com/docs/',
+                'url'   => 'https://bootstrap-table.com/docs/getting-started/introduction/',
                 'color' => '#d9534f',
                 'tag'   => '组件库',
             ],
@@ -326,13 +434,13 @@ class Toolbox extends Backend
                 'icon'  => 'fa-window-maximize',
                 'title' => 'Layer',
                 'desc'  => 'Web 弹层组件文档',
-                'url'   => 'https://layer.layui.com/',
+                'url'   => 'https://layui.dev/docs/2/layer/',
                 'color' => '#f39c12',
                 'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-sitemap',
-                'title' => 'jstree',
+                'title' => 'jstree 官方文档',
                 'desc'  => '树形控件文档',
                 'url'   => 'https://www.jstree.com/',
                 'color' => '#337ab7',
@@ -342,25 +450,17 @@ class Toolbox extends Backend
                 'icon'  => 'fa-check-square-o',
                 'title' => 'Nice Validator',
                 'desc'  => '表单验证组件文档',
-                'url'   => 'https://niceue.com/validator/',
+                'url'   => 'https://validator.niceue.com/docs/index.html',
                 'color' => '#5cb85c',
                 'tag'   => '组件库',
             ],
             [
                 'icon'  => 'fa-search',
-                'title' => 'SelectPage',
+                'title' => 'SelectPage 官方文档',
                 'desc'  => '动态下拉分页选择插件文档',
-                'url'   => 'https://selectpage.info/',
+                'url'   => 'https://terryz.github.io/docs-jq/select-page/docs.html',
                 'color' => '#8e44ad',
                 'tag'   => '组件库',
-            ],
-            [
-                'icon'  => 'fa-bar-chart',
-                'title' => 'ECharts 示例',
-                'desc'  => '数据可视化图表库文档',
-                'url'   => 'https://echarts.apache.org/examples/zh/index.html',
-                'color' => '#e74c3c',
-                'tag'   => '图表库',
             ],
         ];
 
@@ -369,22 +469,25 @@ class Toolbox extends Backend
         foreach ($categories as $catName => $tools) {
             $cards = '';
             foreach ($tools as $t) {
-                $badge = $t['status'] === 'ready'
+                $badge = ($t['status'] === 'ready' or $t['status'] === 'hidden')
                     ? '<span class="card-badge badge-ready">可用</span>'
                     : '<span class="card-badge badge-wip">准备中</span>';
-                $href = $t['status'] === 'ready'
+                $href = ($t['status'] === 'ready' or $t['status'] === 'hidden')
                     ? 'href="' . $t['url'] . '"'
-                    : 'href="javascript:void(0);" onclick="return false;"';
-                $cls = $t['status'] === 'ready' ? 'tool-card-active' : 'tool-card-disabled';
+                    : 'href="javascript:void(0);"';
+                $cls = ($t['status'] === 'ready' or $t['status'] === 'hidden') ? 'tool-card-active' : 'tool-card-disabled';
+                $hidden = $t['status'] === 'hidden' ? 'hidden' : '';
+                $addtabs = ($t['status'] === 'ready' or $t['status'] === 'hidden') ? 'btn-addtabs' : '';
                 $cards .= <<<CARD
-                    <a {$href} class="tool-card {$cls}">
+                    <a {$href} class="tool-card {$cls} {$hidden} {$addtabs}" title="{$t['title']}" alt="{$t['desc']}">
                         <div class="tool-card-icon" style="background:{$t['color']};">
                             <i class="fa {$t['icon']}"></i>
                         </div>
                         <div class="tool-card-body">
-                            <div class="tool-card-title">{$t['title']} {$badge}</div>
+                            <div class="tool-card-title">{$t['title']}</div>
                             <div class="tool-card-desc">{$t['desc']}</div>
                         </div>
+                        {$badge}
                     </a>
                 CARD;
             }
@@ -455,8 +558,10 @@ class Toolbox extends Backend
             .tool-card-title { font-size:14px; font-weight:600; color:#333; margin-bottom:4px; display:flex; align-items:center; }
             .tool-card-desc { font-size:12px; color:#999; line-height:1.5; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 
-            .badge-ready { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:500; background:#dff0d8; color:#3c763d; vertical-align:middle; margin-left:6px; line-height:1.6; }
-            .badge-wip { display:inline-block; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:500; background:#f3f3f3; color:#aaa; vertical-align:middle; margin-left:6px; line-height:1.6; }
+
+            .card-badge { padding:2px 8px; font-size:10px; font-weight:500; vertical-align:middle; line-height:1.6; position: absolute; top:0; right:0; }
+            .badge-ready { background:#dff0d8; color:#3c763d; }
+            .badge-wip { background:#f3f3f3; color:#aaa; }
 
             /* 文档区 (增强版) */
             .tb-docs-section { background:#fff; border:1px solid #e8ecf1; border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.02); }
@@ -560,6 +665,20 @@ class Toolbox extends Backend
                 });
 
                 renderPage(1);
+
+                /* ====== Konami Code ====== */
+                var SEQUENCE = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
+                var idx = 0;
+
+                document.addEventListener("keydown", function(e) {
+                    var key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+                    if (key === SEQUENCE[idx]) {
+                        idx++;
+                        if (idx === SEQUENCE.length) $(".tb-main-row .hidden").removeClass("hidden").addClass("fade-in");
+                    } else {
+                        idx = 0;
+                    }
+                });
             })();
         ';
 
