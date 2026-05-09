@@ -344,14 +344,6 @@ class Toolbox extends Backend
                 'tag'   => '框架核心',
             ],
             [
-                'icon'  => 'fa-flag',
-                'title' => 'Font Awesome 4',
-                'desc'  => 'Font Awesome 4 图标库',
-                'url'   => 'https://fontawesome.com/v4/icons/',
-                'color' => '#228b22',
-                'tag'   => '图标库',
-            ],
-            [
                 'icon'  => 'fa-table',
                 'title' => '一张图解析表格列表的功能',
                 'desc'  => '一张图解析FastAdmin中的表格列表的功能',
@@ -384,6 +376,14 @@ class Toolbox extends Backend
                 'tag'   => '图表库',
             ],
             [
+                'icon'  => 'fa-code',
+                'title' => 'PHP 函数参考',
+                'desc'  => 'PHP 内置函数官方文档',
+                'url'   => 'https://www.php.net/manual/zh/function.array-filter.php',
+                'color' => '#d9534f',
+                'tag'   => 'PHP函数',
+            ],
+            [
                 'icon'  => 'fa-css3',
                 'title' => 'Bootstrap 3',
                 'desc'  => 'Bootstrap 3 中文文档',
@@ -398,6 +398,14 @@ class Toolbox extends Backend
                 'url'   => 'https://v3.bootcss.com/css/',
                 'color' => '#0769ad',
                 'tag'   => 'JS库',
+            ],
+            [
+                'icon'  => 'fa-flag',
+                'title' => 'Font Awesome 4',
+                'desc'  => 'Font Awesome 4 图标库',
+                'url'   => 'https://fontawesome.com/v4/icons/',
+                'color' => '#228b22',
+                'tag'   => '图标库',
             ],
             [
                 'icon'  => 'fa-book',
