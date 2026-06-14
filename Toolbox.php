@@ -7,9 +7,9 @@ use think\Config;
 use think\Exception;
 use think\addons\AddonException;
 use think\addons\Service;
-use fast\Http;
 use think\Cache;
 use fast\Random;
+use think\Db;
 
 /**
  * FastAdmin 开发工具箱
@@ -119,13 +119,82 @@ class Toolbox extends Backend
     }
 
     /**
+     * 模板复用渲染
+     * 
+     * 
+     */
+    protected function renderTpl($title, $desc = '', $tplPath, $prepend = '', $append = '', $scripts = '', $styles = '', $showBack = true, $backUrl = '')
+    {
+        $viewConfig = $this->view->config;
+        $viewConfig['jsname'] = '';
+        $this->view->config = $viewConfig;
+        $this->assign('config', $viewConfig);
+
+        $assignConfig = [
+            'toolbox_index_url'     => url('index'),
+            'toolbox_installer_url' => url('installer'),
+            'toolbox_phpinfo_url'   => url('phpinfo'),
+            'addon_testdata_url'    => url('addon/testdata'),
+        ];
+        $addons = get_addon_list();
+        foreach ($addons as $k => &$v) {
+            $config = get_addon_config($v['name']);
+            $v['config'] = $config ? 1 : 0;
+            $v['url'] = str_replace($this->request->server('SCRIPT_NAME'), '', $v['url']);
+        }
+        $this->assignconfig(['addons' => $addons, 'api_url' => config('fastadmin.api_url'), 'faversion' => config('fastadmin.version'), 'domain' => request()->host(true)]);
+        $this->assignconfig($assignConfig);
+
+        $this->assign('title', $title);
+        // $this->view->engine->layout(false);
+        $backUrl = url('index');
+        $backHtml = '<a href="' . $backUrl . '" class="btn btn-default back-btn btn-addtabs" style="margin-bottom:15px;"><i class="fa fa-arrow-left"></i> 工具箱首页</a>';
+        $header = <<<HTML
+            <style>
+                /* 顶部 Hero */
+                .tb-hero { text-align:center; padding:40px; }
+                .tb-hero h2 { margin:0 0 10px; font-size:22px; font-weight:bold; color:#333; letter-spacing:0.5px; }
+                .tb-hero h2 i { font-size:24px; }
+                .tb-hero-sub { margin:0; color:#b0b0b0; font-size:12px; letter-spacing:1px; }
+            </style>
+            <div class="tb-hero">
+                <h2><i class="fa fa-upload" style="color:#18bc9c;"></i> {$title}</h2>
+                <p class="tb-hero-sub">{$desc}</p>
+            </div>
+        HTML;
+        $html =  $this->fetch($tplPath);
+        if ($scripts) {
+            $scriptTag = <<<'SCRIPT'
+                <script>
+                (function checkReady() {
+                    if (typeof jQuery !== "undefined" && typeof Layer !== "undefined") {
+                        (function($, Layer) {
+                SCRIPT;
+                            $scriptTag .= $scripts;
+                            $scriptTag .= <<<'SCRIPT'
+                        })(jQuery, Layer);
+                    } else {
+                        setTimeout(checkReady, 50);
+                    }
+                })();
+                </script>
+            SCRIPT;
+            $html = str_replace('</body>', $styles . $scriptTag . '</body>', $html);
+        }
+        $html = str_replace('<div class="content">', '<div class="content">' . ($showBack ? $backHtml : '') . $header . $prepend, $html);
+        $html = $this->appendBeforeContentEnd($html, $append);
+
+        return $this->display($html);
+    }
+
+    /**
      * 工具箱首页
      */
     public function index()
     {
         // -------- 工具集（按分类） --------
-        $categories = [
-            '开发辅助' => [
+        $tools = [
+            '系统运维' => [
                 [
                     'icon'   => 'fa-info-circle',
                     'title'  => '系统环境信息',
@@ -135,10 +204,36 @@ class Toolbox extends Backend
                     'color'  => '#18bc9c',
                 ],
                 [
+                    'icon'   => 'fa-file-text-o',
+                    'title'  => '日志查看器',
+                    'desc'   => '实时查看系统运行日志、错误日志与 SQL 日志，支持下载。',
+                    'url'    => '',
+                    'status' => 'wip',
+                    'color'  => '#d9534f',
+                ],
+            ],
+            '开发辅助' => [
+                [
                     'icon'   => 'fa-key',
                     'title'  => '密码生成器',
                     'desc'   => '密码加密生成工具自定义盐值。',
                     'url'    => url('password'),
+                    'status' => 'ready',
+                    'color'  => '#337ab7',
+                ],
+                [
+                    'icon'   => 'fa-magic',
+                    'title'  => '本地插件管理器',
+                    'desc'   => '可进行本地插件的手动安装、更新、卸载等管理操作，方便插件开发调试使用。',
+                    'url'    => url('addons'),
+                    'status' => 'ready',
+                    'color'  => '#f39c12',
+                ],
+                [
+                    'icon'   => 'fa-sitemap',
+                    'title'  => '菜单管理器',
+                    'desc'   => '可以方便的对菜单进行导入导出操作，方便插件开发使用。',
+                    'url'    => url('rules'),
                     'status' => 'ready',
                     'color'  => '#337ab7',
                 ],
@@ -173,14 +268,6 @@ class Toolbox extends Backend
                     'url'    => url('table'),
                     'status' => 'wip',
                     'color'  => '#f39c12',
-                ],
-                [
-                    'icon'   => 'fa-sitemap',
-                    'title'  => '菜单管理器',
-                    'desc'   => '可以方便的对菜单进行导入导出操作，方便插件开发使用。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#337ab7',
                 ],
                 [
                     'icon'   => 'fa-cubes',
@@ -289,41 +376,15 @@ class Toolbox extends Backend
                     'color'  => '#8e44ad',
                 ],
             ],
-            '系统运维' => [
+            '插件增强' => [
                 [
-                    'icon'   => 'fa-file-text-o',
-                    'title'  => '日志查看器',
-                    'desc'   => '实时查看系统运行日志、错误日志与 SQL 日志，支持下载。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#d9534f',
-                ],
-                [
-                    'icon'   => 'fa-folder-open',
-                    'title'  => '文件管理器',
-                    'desc'   => '在线浏览与管理项目文件系统，支持编辑、上传、重命名。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#3c8dbc',
-                ],
-                [
-                    'icon'   => 'fa-database',
-                    'title'  => '数据备份',
-                    'desc'   => '一键备份/还原数据库，支持按表选择与定时计划。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#5bc0de',
-                ],
-                [
-                    'icon'   => 'fa-bug',
-                    'title'  => '调试面板',
-                    'desc'   => '查看日志、SQL 查询记录、请求链路追踪与变量输出。',
+                    'icon'   => 'fa-check-circle-o',
+                    'title'  => '依赖检测',
+                    'desc'   => '检测插件依赖关系，确保插件正常运行。',
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#34495e',
-                ],
-            ],
-            '插件功能增强' => [
+                ]
             ]
         ];
         $docs = [
@@ -475,7 +536,7 @@ class Toolbox extends Backend
 
 
         $toolHtml = '';
-        foreach ($categories as $catName => $tools) {
+        foreach ($tools as $catName => $tools) {
             $cards = '';
             foreach ($tools as $t) {
                 $badge = ($t['status'] === 'ready' or $t['status'] === 'hidden')
@@ -798,6 +859,630 @@ class Toolbox extends Backend
         ';
         return $this->renderPage('密码生成器 - FastAdmin 开发工具箱', $content, $scripts, '', true);
 
+    }
+
+
+    /**
+     * 本地插件管理器
+     */
+    public function addons()
+    {
+        if ($this->request->isPost()) {
+            $params = $this->request->param();
+            if (!isset($params['name']) || !preg_match('/^[a-zA-Z0-9]+$/', $params['name'])) {
+                $this->error('插件标识不合法');
+            }
+            $addonName = $params['name'];
+            $addonDir = ADDON_PATH . $addonName . DS;
+            if (!is_dir($addonDir)) {
+                $this->error('插件目录不存在: ' . $addonName);
+            }
+
+            $result = false;
+            try {
+                switch ($params['action']) {
+                    case 'install-menu':
+                        $result = $this->addon_install_menu($addonName);
+                        break;
+                    case 'install-db':
+                        $result = $this->addon_install_db($addonName);
+                        break;
+                    case 'uninstall-menu':
+                        $result = $this->addon_uninstall_menu($addonName);
+                        break;
+                    default:
+                        $this->error('未知操作');
+                }
+            } catch (\Exception $e) {
+                $this->error('操作失败: ' . $e->getMessage());
+            }
+
+            if ($result) {
+                $this->success("操作成功。");
+            } else {
+                $this->error('操作失败。');
+            }
+        }
+        $title = '本地插件管理器';
+        $desc = "快捷管理您的本地插件";
+
+        $scripts = <<<JS
+            require(["jquery", "bootstrap", "backend", "table", "form", "template", "cookie"], function ($, undefined, Backend, Table, Form, Template, undefined) {
+                $.cookie.prototype.defaults = {path: Config.moduleurl};
+                var Controller = {
+                    index:function () {
+
+                        $("#faupload-addon").remove();
+                        $(".btn-userinfo").remove();
+                        $("#toolbar .btn-group").remove();
+                        $(".panel-heading").remove();
+                        // 初始化表格参数配置
+                        Table.api.init({
+                            extend: {
+                                index_url: "addon/downloaded"
+                            }
+                        });
+
+                        var table = $("#table");
+                        // 初始化表格
+                        table.bootstrapTable({
+                            url: $.fn.bootstrapTable.defaults.extend.index_url,
+                            pageSize: 50,
+                            columns: [
+                                [
+                                    {field: "id", title: "ID", operate: false, visible: false},
+                                    {field: "name", title: "插件标识", operate: false, visible: false, width: "120px"},
+                                    {
+                                        field: "title",
+                                        title: "插件名称",
+                                        operate: "LIKE",
+                                        align: "left",
+                                        formatter: Controller.api.formatter.title
+                                    },
+                                    {
+                                        field: "intro",
+                                        title: "插件简介",
+                                        operate: "LIKE",
+                                        align: "left",
+                                        class: "visible",
+                                        formatter: Controller.api.formatter.intro
+                                    },
+                                    {
+                                        field: "author",
+                                        title: "插件作者",
+                                        operate: "LIKE",
+                                        width: "100px",
+                                        formatter: Controller.api.formatter.author
+                                    },
+                                    {
+                                        field: "version",
+                                        title: "插件版本",
+                                        operate: "LIKE",
+                                        width: "80px",
+                                        align: "center",
+                                        formatter: Controller.api.formatter.version
+                                    },
+                                    {
+                                        field: "state",
+                                        title: "状态",
+                                        width: "80px",
+                                        formatter: function (value,row) {
+                                            if (value == 0) return '停用';
+                                            if (value == 1) return '启用';
+                                        },
+                                    },
+                                    {
+                                        field: "operate",
+                                        title: "操作",
+                                        align: "right",
+                                        table: table, 
+                                        events: Table.api.events.operate,
+                                        formatter: Table.api.formatter.operate,
+                                        buttons: [
+                                            {
+                                                name: "install_menu",
+                                                text: "安装菜单",
+                                                title: "安装菜单",
+                                                classname: "btn btn-xs btn-success btn-install-menu btn-ajax",
+                                                icon: "fa fa-plus",
+                                                url: function(row){
+                                                    return 'toolbox/addons?action=install-menu&name=' + row.name;
+                                                },
+                                                confirm: '此操作将调用插件 install() 方法安装菜单，确认继续吗？',
+                                                success: function (data, ret) {
+                                                    Layer.msg(ret.msg || '菜单安装成功', {icon: 1});
+                                                    Fast.api.refreshmenu();
+                                                    return false;
+                                                },
+                                                error: function (data, ret) {
+                                                    Layer.alert(ret.msg || '菜单安装失败', {icon: 2});
+                                                    return false;
+                                                }
+                                            },
+                                            {
+                                                name: "install_db",
+                                                text: "安装数据",
+                                                title: "安装数据",
+                                                classname: "btn btn-xs btn-info btn-install-db btn-ajax",
+                                                icon: "fa fa-database",
+                                                url: function(row){
+                                                    return 'toolbox/addons?action=install-db&name=' + row.name;
+                                                },
+                                                confirm: '此操作将执行插件目录下的 install.sql，重复执行不会报错（INSERT IGNORE），确认继续吗？',
+                                                success: function (data, ret) {
+                                                    Layer.msg(ret.msg || '数据表安装成功', {icon: 1});
+                                                    return false;
+                                                },
+                                                error: function (data, ret) {
+                                                    Layer.alert(ret.msg || '数据表安装失败', {icon: 2});
+                                                    return false;
+                                                }
+                                            },
+                                            {
+                                                name: "uninstall-menu",
+                                                text: "卸载菜单",
+                                                title: "卸载插件的菜单",
+                                                classname: "btn btn-xs btn-danger btn-uninstall btn-ajax",
+                                                icon: "fa fa-trash",
+                                                url: function(row){
+                                                    return 'toolbox/addons?action=uninstall-menu&name=' + row.name;
+                                                },
+                                                confirm: '此操作将移除该插件的所有菜单项（不会删除插件文件），确认继续吗？',
+                                                success: function (data, ret) {
+                                                    Layer.msg(ret.msg || '菜单卸载成功', {icon: 1});
+                                                    Fast.api.refreshmenu();
+                                                    return false;
+                                                },
+                                                error: function (data, ret) {
+                                                    Layer.alert(ret.msg || '菜单卸载失败', {icon: 2});
+                                                    return false;
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            ],
+                            responseHandler: function (res) {
+                                $.each(res.rows, function (i, j) {
+                                    j.addon = typeof Config.addons[j.name] != "undefined" ? Config.addons[j.name] : null;
+                                });
+                                return res;
+                            },
+                            dataType: "jsonp",
+                            templateView: false,
+                            clickToSelect: false,
+                            search: true,
+                            showColumns: false,
+                            showToggle: false,
+                            showExport: false,
+                            showSearch: false,
+                            commonSearch: true,
+                            searchFormVisible: true,
+                            searchFormTemplate: "searchformtpl",
+                        });
+
+                        // 为表格绑定事件
+                        Table.api.bindevent(table);
+
+                    },
+                    api: {
+                        formatter: {
+                            title: function (value, row, index) {
+                                if ($(".btn-switch.active").data("type") == "local") {
+                                    // return value;
+                                }
+                                var title = '<a class="title" href="' + row.url + '" data-toggle="tooltip" title="' + "查看插件站点" + '" target="_blank"><span class="' + Fast.api.escape(row.color) + '">' + value + '</span></a>';
+                                if (row.screenshots && row.screenshots.length > 0) {
+                                    title += ' <a href="javascript:;" data-index="' + index + '" class="view-screenshots text-success" title="' + "查看插件截图" + '" data-toggle="tooltip"><i class="fa fa-image"></i></a>';
+                                }
+                                return title;
+                            },
+                            intro: function (value, row, index) {
+                                return row.intro + (row.extend ? "<a href='" + Fast.api.escape(row.extend[1]) + "' class='" + Fast.api.escape(row.extend[2]) + "'>" + Fast.api.escape(row.extend[0]) + "</a>" : "");
+                            },
+                            operate: function (value, row, index) {
+                                return Template("operatetpl", {item: row, index: index});
+                            },
+                            toggle: function (value, row, index) {
+                                if (!row.addon) {
+                                    return '';
+                                }
+                                return '<a href="javascript:;" data-toggle="tooltip" title="' + "点击切换状态" + '" class="btn btn-toggle btn-' + (row.addon.state == 1 ? "disable" : "enable") + '" data-action="' + (row.addon.state == 1 ? "disable" : "enable") + '" data-name="' + row.name + '"><i class="fa ' + (row.addon.state == 0 ? 'fa-toggle-on fa-rotate-180 text-gray' : 'fa-toggle-on text-success') + ' fa-2x"></i></a>';
+                            },
+                            author: function (value, row, index) {
+                                var url = 'javascript:';
+                                if (typeof row.homepage !== 'undefined') {
+                                    url = row.homepage;
+                                } else if (typeof row.qq !== 'undefined' && row.qq) {
+                                    url = 'https://wpa.qq.com/msgrd?v=3&uin=' + row.qq + '&site=&menu=yes';
+                                }
+                                return '<a href="' + url + '" target="_blank" data-toggle="tooltip" class="text-primary">' + value + '</a>';
+                            },
+                            version: function (value, row, index) {
+                                return row.addon && row.addon.version != row.version ? '<a href="' + row.url + '?version=' + row.version + '" target="_blank"><span class="releasetips text-primary" data-toggle="tooltip" title="' + "新版本: " + row.version + '">' + row.addon.version + '<i></i></span></a>' : row.version;
+                            },
+                            home: function (value, row, index) {
+                                return row.addon && parseInt(row.addon.state) > 0 ? '<a href="' + row.addon.url + '" data-toggle="tooltip" title="' + "查看插件站点" + '" target="_blank"><i class="fa fa-home text-primary"></i></a>' : '<a href="javascript:;"><i class="fa fa-home text-gray"></i></a>';
+                            },
+                        },
+                        bindevent: function () {
+                            Form.api.bindevent($("form[role=form]"));
+                        },
+                    }
+                };
+                Controller.index();
+            });
+        JS;
+
+        $styles = '';
+        return $this->renderTpl($title, $desc, 'addon/index', '', '', $scripts, $styles);
+    }
+
+    /**
+     * 菜单管理器
+     */
+    public function rules()
+    {
+        if ($this->request->isPost()) {
+            $params = $this->request->param();
+            switch($params['action']){
+                case 'export':
+                    $ids = isset($params['ids']) ? explode(',', $params['ids']) : [];
+                    if (empty($ids)) {
+                        $this->error('请选择要导出的菜单');
+                    }
+                    // 查询全部规则（排除不需要的字段）
+                    $ruleList = \think\Db::name("auth_rule")
+                        ->field('type,condition,remark,createtime,updatetime', true)
+                        ->order('weigh DESC,id ASC')
+                        ->select();
+
+                    $result = [];
+                    foreach ($ids as $id) {
+                        // 在规则列表中找到当前记录作为根节点
+                        $root = null;
+                        foreach ($ruleList as $rule) {
+                            if ($rule['id'] == $id) {
+                                $root = $rule;
+                                break;
+                            }
+                        }
+                        if (!$root) {
+                            continue;
+                        }
+                        // 用 fast\Tree 构建该节点下的子树
+                        $tree = \fast\Tree::instance()->init($ruleList)->getTreeArray($id);
+                        // 将根节点与子树合并为导出结构
+                        $exportData = $this->buildMenuExportData($root, $tree);
+                        $result[] = $exportData;
+                    }
+                    if (empty($result)) {
+                        $this->error('未找到可导出的菜单数据');
+                    }
+                    // 格式化为 PHP 代码字符串
+                    $code = "\$menu = " . $this->varExportPretty($result) . ";\n";
+                    return $this->success('导出成功', null, ['code' => $code]);
+                case 'import':
+                    $code = isset($params['code']) ? $params['code'] : '';
+                    if (empty($code)) {
+                        $this->error('请输入菜单代码');
+                    }
+                    // 清洗代码字符串（去除赋值语句等）
+                    $code = $this->cleanMenuCode($code);
+                    if (empty($code)) {
+                        $this->error('无法解析菜单代码');
+                    }
+                    // 使用 token 解析器安全解析（不执行代码）
+                    $menu = $this->parseTokenArray($code);
+                    if (empty($menu) || !is_array($menu)) {
+                        $this->error('菜单代码解析失败，请检查格式');
+                    }
+                    // 校验菜单结构
+                    if (!isset($menu[0]) || !isset($menu[0]['name'])) {
+                        $this->error('菜单格式不正确，缺少 name 字段');
+                    }
+                    // 写入数据库
+                    try {
+                        \app\common\library\Menu::create($menu);
+                    } catch (\Exception $e) {
+                        $this->error('导入失败：' . $e->getMessage());
+                    }
+                    return $this->success('导入成功，菜单已刷新');
+                default:
+                    $this->error('处理失败');
+            }
+        }
+        $title = '菜单管理器';
+        $desc = '帮助您快速导出插件开发需要用到的菜单代码';
+        $styles = '';
+        $scripts = <<<JS
+            require(["jquery", "bootstrap", "backend", "table", "form", "template", "cookie"], function ($, undefined, Backend, Table, Form, Template, undefined) {
+                $.cookie.prototype.defaults = {path: Config.moduleurl};
+                var Controller = {
+                    index:function () {
+
+                        $(".btn-add").remove();
+                        $(".btn-edit").remove();
+                        $(".btn-del").remove();
+                        $("#toolbar .btn-group").remove();
+
+                        // 增加导出按钮
+                        $("#toolbar a").eq(0).after(' <a href="javascript:;" class="btn btn-success btn-export-menu" title="导出菜单"><i class="fa fa-download"></i> 导出菜单</a>');
+                        $("#toolbar a").eq(0).after(' <a href="javascript:;" class="btn btn-info btn-import-menu" title="导入菜单"><i class="fa fa-upload"></i> 导入菜单</a>');
+                        // 初始化表格参数配置
+                        Table.api.init({
+                            extend: {
+                                index_url: "auth/rule/index",
+                            }
+                        });
+
+                        var table = $("#table");
+                        // 初始化表格
+                        table.bootstrapTable({
+                            url: $.fn.bootstrapTable.defaults.extend.index_url,
+                            sortName: '',
+                            escape: true,
+                            columns: [
+                                [
+                                    {field: 'state', radio: true,},
+                                    {field: 'id', title: 'ID'},
+                                    {
+                                        field: 'ismenu',
+                                        title: '菜单',
+                                        align: 'center',
+                                        table: table,
+                                        formatter: function (value, row, index) {
+                                            return value == 1 ? '<span class="label label-success">菜单</span>' : '<span class="label label-default">节点</span>';
+                                        }
+                                    },
+                                    {field: 'title', title: __('Title'), align: 'left', formatter: Controller.api.formatter.title, clickToSelect: !false},
+                                    {field: 'status', title: __('Status'), formatter: Table.api.formatter.status}
+                                ]
+                            ],
+                            pagination: false,
+                            search: false,
+                            commonSearch: false,
+                            rowAttributes: function (row, index) {
+                                return row.pid == 0 ? {} : {style: "display:none"};
+                            }
+                        });
+
+                        // 为表格绑定事件
+                        Table.api.bindevent(table);
+
+                        // 清除右侧多余的按钮
+                        $(".columns-right.btn-group").hide();
+
+                        var btnSuccessEvent = function (data, ret) {
+                            if ($(this).hasClass("btn-change")) {
+                                var index = $(this).data("index");
+                                var row = Table.api.getrowbyindex(table, index);
+                                row.ismenu = $("i.fa.text-gray", this).length > 0 ? 1 : 0;
+                                table.bootstrapTable("updateRow", {index: index, row: row});
+                            } else if ($(this).hasClass("btn-delone")) {
+                                if ($(this).closest("tr[data-index]").find("a.btn-node-sub.disabled").length > 0) {
+                                    $(this).closest("tr[data-index]").remove();
+                                } else {
+                                    table.bootstrapTable('refresh');
+                                }
+                            } else if ($(this).hasClass("btn-dragsort")) {
+                                table.bootstrapTable('refresh');
+                            }
+                            Fast.api.refreshmenu();
+                            return false;
+                        };
+
+                        //表格内容渲染前
+                        table.on('pre-body.bs.table', function (e, data) {
+                            var options = table.bootstrapTable("getOptions");
+                            options.escape = true;
+                        });
+
+                        //当内容渲染完成后
+                        table.on('post-body.bs.table', function (e, data) {
+                            var options = table.bootstrapTable("getOptions");
+                            options.escape = false;
+
+                            //点击切换/排序/删除操作后刷新左侧菜单
+                            $(".btn-change[data-id],.btn-delone,.btn-dragsort").data("success", btnSuccessEvent);
+
+                        });
+
+                        table.on('post-body.bs.table', function (e, settings, json, xhr) {
+                            //显示隐藏子节点
+                            $(">tbody>tr[data-index] > td", this).on('click', "a.btn-node-sub", function () {
+                                var status = $(this).data("shown") ? true : false;
+                                $("a[data-pid='" + $(this).data("id") + "']").each(function () {
+                                    $(this).closest("tr").toggle(!status);
+                                });
+                                if (status) {
+                                    $("a[data-pid='" + $(this).data("id") + "']").trigger("collapse");
+                                }
+                                $(this).data("shown", !status);
+                                $("i.fa-caret-down,i.fa-caret-right", this).toggleClass("fa-caret-down").toggleClass("fa-caret-right");
+                                return false;
+                            });
+                        });
+
+                        //隐藏子节点
+                        $(document).on("collapse", ".btn-node-sub", function () {
+                            if ($("i", this).length > 0) {
+                                $("a[data-pid='" + $(this).data("id") + "']").trigger("collapse");
+                            }
+                            $("i.fa-caret-down", this).removeClass("fa-caret-down").addClass("fa-caret-right");
+                            $(this).data("shown", false);
+                            $(this).closest("tr").toggle(false);
+                        });
+
+                        //批量删除后的回调
+                        $(".toolbar > .btn-del,.toolbar .btn-more~ul>li>a").data("success", function (e) {
+                            Fast.api.refreshmenu();
+                        });
+
+                        //展开隐藏一级
+                        $(document.body).on("click", ".btn-toggle", function (e) {
+                            $("a[data-id][data-pid][data-pid!=0].disabled").closest("tr").hide();
+                            var that = this;
+                            var show = $("i", that).hasClass("fa-chevron-down");
+                            $("i", that).toggleClass("fa-chevron-down", !show).toggleClass("fa-chevron-up", show);
+                            $("a[data-id][data-pid][data-pid!=0]").not('.disabled').closest("tr").toggle(show);
+                            $(".btn-node-sub[data-pid=0]").data("shown", show);
+                        });
+
+                        //展开隐藏全部
+                        $(document.body).on("click", ".btn-toggle-all", function (e) {
+                            var that = this;
+                            var show = $("i", that).hasClass("fa-plus");
+                            $("i", that).toggleClass("fa-plus", !show).toggleClass("fa-minus", show);
+                            $(".btn-node-sub:not([data-pid=0])").closest("tr").toggle(show);
+                            $(".btn-node-sub").data("shown", show);
+                            $(".btn-node-sub > i").toggleClass("fa-caret-down", show).toggleClass("fa-caret-right", !show);
+                        });
+                        
+                        $(document.body).on("click", ".btn-export-menu", function (e) {
+                            // 检测表格选中项
+                            var selected = table.bootstrapTable('getSelections').map(function (row) {
+                                return row.id;
+                            });
+                            if (selected.length === 0) {
+                                Layer.msg("请先选择要导出的菜单");
+                                return;
+                            }
+                            var index = Layer.load();
+                            var url = $(this).data("url") || "toolbox/rules?action=export";
+                            Fast.api.ajax({
+                                url: url,
+                                data: {ids: selected.join(",")}
+                            }, function (data, ret) {
+                                Layer.close(index);
+                                if (ret && ret.code === 1 && ret.data && ret.data.code) {
+                                    Layer.open({
+                                        type: 1,
+                                        title: '导出菜单代码',
+                                        area: ['820px', '520px'],
+                                        content: '<div class="p-3"><pre style="max-height:380px;overflow:auto;background:#f5f5f5;padding:15px;border-radius:4px;font-size:12px;"><code>' + Fast.api.escape(ret.data.code) + '</code></pre></div>',
+                                        btn: ['复制代码', '关闭'],
+                                        yes: function(layeroIndex) {
+                                            if (navigator.clipboard) {
+                                                navigator.clipboard.writeText(ret.data.code).then(function() {
+                                                    Layer.msg('已复制到剪贴板', {icon: 1});
+                                                });
+                                            } else {
+                                                Layer.msg('请手动复制代码', {icon: 0});
+                                            }
+                                        },
+                                        btn2: function(layeroIndex) {
+                                            Layer.close(layeroIndex);
+                                        }
+                                    });
+                                } else {
+                                    Layer.msg(ret && ret.msg ? ret.msg : "导出失败", {icon: 2});
+                                }
+                            });
+                        });
+                        $(document.body).on("click", ".btn-import-menu", function (e) {
+                            var url = $(this).data("url") || "toolbox/rules?action=import";
+                            Layer.open({
+                                type: 1,
+                                title: '导入菜单',
+                                area: ['820px', '520px'],
+                                content: '<div class="p-3"><textarea id="import-menu-code" class="form-control" rows="18" placeholder="请粘贴菜单数组代码，例如：\\n[\\n    [\\n        \'name\' => \'xxx\',\\n        \'title\' => \'菜单标题\',\\n        \'icon\' => \'fa fa-list\',\\n        \'sublist\' => [\\n            [\'name\' => \'xxx/index\', \'title\' => \'查看\'],\\n        ]\\n    ]\\n]" style="font-family:monospace;font-size:13px;"></textarea></div>',
+                                btn: ['确认导入', '取消'],
+                                yes: function(layeroIndex) {
+                                    var code = $('#import-menu-code').val().trim();
+                                    if (!code) {
+                                        Layer.msg('请输入菜单代码', {icon: 0});
+                                        return;
+                                    }
+                                    var idx = Layer.load();
+                                    Fast.api.ajax({
+                                        url: url,
+                                        data: {code: code}
+                                    }, function (data, ret) {
+                                        Layer.close(idx);
+                                        if (ret && ret.code === 1) {
+                                            Layer.close(layeroIndex);
+                                            Layer.msg('导入成功', {icon: 1});
+                                            table.bootstrapTable('refresh');
+                                            Fast.api.refreshmenu();
+                                        } else {
+                                            Layer.msg(ret && ret.msg ? ret.msg : '导入失败', {icon: 2});
+                                        }
+                                    });
+                                },
+                                btn2: function(layeroIndex) {
+                                    Layer.close(layeroIndex);
+                                }
+                            });
+                        });
+                    },
+                    api: {
+                        formatter: {
+                            title: function (value, row, index) {
+                                value = value.toString().replace(/(&|&amp;)nbsp;/g, '&nbsp;');
+                                var caret = row.haschild == 1 || row.ismenu == 1 ? '<i class="fa fa-caret-right"></i>' : '';
+                                value = value.indexOf("&nbsp;") > -1 ?  value.replace(/(.*)&nbsp;/,  "$1" + caret) : caret + value ;
+
+                                value = !row.ismenu || row.status == 'hidden' ? "<span class='text-muted'>" + value + "</span>" : value;
+                                return '<a href="javascript:;" data-id="' + row.id + '" data-pid="' + row.pid + '" class="'
+                                    + (row.haschild == 1 || row.ismenu == 1 ? 'text-primary' : 'disabled') + ' btn-node-sub">' + '<span class="' + (!row.ismenu || row.status == 'hidden' ? 'text-muted' : '') + '"><i class="' + row.icon + '"></i></span>&nbsp;&nbsp;' + value + '&nbsp;(' + row.name + ')' + '</a>';
+                            },
+                        },
+                        bindevent: function () {
+                            $(document).on('click', "input[name='row[ismenu]']", function () {
+                                var name = $("input[name='row[name]']");
+                                var ismenu = $(this).val() == 1;
+                                name.prop("placeholder", ismenu ? name.data("placeholder-menu") : name.data("placeholder-node"));
+                                $('div[data-type="menu"]').toggleClass("hidden", !ismenu);
+                            });
+                            $("input[name='row[ismenu]']:checked").trigger("click");
+
+                            var iconlist = [];
+                            var iconfunc = function () {
+                                Layer.open({
+                                    type: 1,
+                                    area: ['80%', '80%'], //宽高
+                                    content: Template('chooseicontpl', {iconlist: iconlist})
+                                });
+                            };
+                            Form.api.bindevent($("form[role=form]"), function (data) {
+                                Fast.api.refreshmenu();
+                            });
+                            $(document).on('change keyup', "#icon", function () {
+                                $(this).prev().find("i").prop("class", $(this).val());
+                            });
+                            $(document).on('click', ".btn-search-icon", function () {
+                                if (iconlist.length == 0) {
+                                    $.get(Config.site.cdnurl + "/assets/libs/font-awesome/css/font-awesome.css", function (ret) {
+                                        var exp = /fa-(.*):before/ig;
+                                        var result;
+                                        while ((result = exp.exec(ret)) != null) {
+                                            iconlist.push(result[1]);
+                                        }
+                                        iconfunc();
+                                    });
+                                } else {
+                                    iconfunc();
+                                }
+                            });
+                            $(document).on('click', '#chooseicon ul li', function () {
+                                $("input[name='row[icon]']").val('fa fa-' + $(this).data("font")).trigger("change");
+                                Layer.closeAll();
+                            });
+                            $(document).on('keyup', 'input.js-icon-search', function () {
+                                $("#chooseicon ul li").show();
+                                if ($(this).val() != '') {
+                                    $("#chooseicon ul li:not([data-font*='" + $(this).val() + "'])").hide();
+                                }
+                            });
+                        }
+                    }
+                };
+                Controller.index();
+            });
+        JS;
+
+        return $this->renderTpl($title, $desc, 'auth/rule/index', '', '', $scripts, $styles);
     }
 
     /**
@@ -1490,6 +2175,498 @@ class Toolbox extends Backend
             return false;
         }
         return $response;
+    }
+
+    protected function appendBeforeContentEnd($html, $appendHtml) {
+        // 找到 content div 的起始位置
+        $start = strpos($html, '<div class="content"');
+        if ($start === false) {
+            return $html; // 没找到 content
+        }
+
+        // 找到第一个 '>'，即 content div 的开始标签结束处
+        $startTagEnd = strpos($html, '>', $start);
+        if ($startTagEnd === false) {
+            return $html;
+        }
+
+        $pos = $startTagEnd + 1;
+        $len = strlen($html);
+        $depth = 1; // 已经进入了一个 <div>
+
+        while ($pos < $len) {
+            // 找下一个 <div 或 </div>
+            $nextOpen  = strpos($html, '<div', $pos);
+            $nextClose = strpos($html, '</div>', $pos);
+
+            // 如果没有更多 div，退出
+            if ($nextClose === false) break;
+
+            // 判断是先遇到开标签还是闭标签
+            if ($nextOpen !== false && $nextOpen < $nextClose) {
+                // 遇到嵌套 div
+                $depth++;
+                $pos = $nextOpen + 4;
+            } else {
+                // 遇到 </div>
+                $depth--;
+                if ($depth === 0) {
+                    // 找到 content 对应的结束 div
+                    return substr($html, 0, $nextClose)
+                        . $appendHtml
+                        . substr($html, $nextClose);
+                }
+                $pos = $nextClose + 6;
+            }
+        }
+
+        return $html; // 未找到匹配的结束 div
+    }
+
+
+    /**
+     * 插件菜单安装方法（细颗粒度）
+     * 仅调用插件类的 install() 方法安装菜单，不修改插件状态和文件
+     * @param string $addon_name 插件名称
+     * @param string $menu_content 可选的自定义菜单数组
+     * @return true
+     * @throws \Exception
+     */
+    protected function addon_install_menu($addon_name, $menu_content = '')
+    {
+        // 如果传入了自定义菜单内容，直接使用
+        if (!empty($menu_content)) {
+            if (is_string($menu_content)) {
+                $menu = json_decode($menu_content, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \think\Exception('菜单内容 JSON 解析失败');
+                }
+            } else {
+                $menu = $menu_content;
+            }
+            if (empty($menu) || !is_array($menu)) {
+                throw new \think\Exception('菜单数据为空或格式错误');
+            }
+            if (!isset($menu[0]) || !isset($menu[0]['name'])) {
+                throw new \think\Exception('菜单格式不正确，缺少 name 字段');
+            }
+            \app\common\library\Menu::create($menu);
+            return true;
+        }
+
+        // 获取插件类并执行 install() 方法
+        $class = get_addon_class($addon_name);
+        if (!$class || !class_exists($class)) {
+            throw new \think\Exception('插件类不存在: ' . $addon_name);
+        }
+
+        $addon = new $class();
+        if (!method_exists($addon, 'install')) {
+            throw new \think\Exception('插件未定义 install() 方法');
+        }
+
+        Db::startTrans();
+        try {
+            $addon->install();
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            throw $e;
+        }
+
+        return true;
+    }
+
+    /**
+     * 插件数据表导入方法（细颗粒度）
+     * 执行插件目录下的 install.sql 文件，自动替换表前缀
+     * @param string $addon_name 插件名称
+     * @param string $sql_content 可选的自定义 SQL 内容（传入则优先使用）
+     * @return true
+     * @throws \Exception
+     */
+    protected function addon_install_db($addon_name, $sql_content = '')
+    {
+        $tablePrefix = config('database.prefix');
+
+        if (!empty($sql_content)) {
+            // 直接执行传入的 SQL 内容
+            $sql = $sql_content;
+            $source = '自定义内容';
+        } else {
+            $sqlFile = ADDON_PATH . $addon_name . DS . 'install.sql';
+            if (!is_file($sqlFile)) {
+                throw new \think\Exception('install.sql 文件不存在');
+            }
+            $sql = file_get_contents($sqlFile);
+            $source = basename($sqlFile);
+            if (empty(trim($sql))) {
+                throw new \think\Exception('install.sql 文件内容为空');
+            }
+        }
+
+        $lines = explode("\n", $sql);
+        $templine = '';
+        $executedCount = 0;
+        $errors = [];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            // 跳过注释行和空行
+            if ($trimmed === '' || strpos($trimmed, '--') === 0 || strpos($trimmed, '/*') === 0) {
+                continue;
+            }
+
+            $templine .= $line;
+            // 以分号结尾表示一条完整 SQL
+            if (substr($trimmed, -1, 1) === ';') {
+                // 替换表前缀
+                $templine = str_ireplace('__PREFIX__', $tablePrefix, $templine);
+                // INSERT 转 INSERT IGNORE 避免重复执行报错
+                $templine = str_ireplace('INSERT INTO ', 'INSERT IGNORE INTO ', $templine);
+
+                try {
+                    Db::getPdo()->exec($templine);
+                    $executedCount++;
+                } catch (\PDOException $e) {
+                    $errors[] = $e->getMessage();
+                }
+                $templine = '';
+            }
+        }
+
+        // 处理最后可能未以分号结尾的语句
+        if (!empty(trim($templine))) {
+            $templine = str_ireplace('__PREFIX__', $tablePrefix, $templine);
+            $templine = str_ireplace('INSERT INTO ', 'INSERT IGNORE INTO ', $templine);
+            try {
+                Db::getPdo()->exec($templine);
+                $executedCount++;
+            } catch (\PDOException $e) {
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        if (!empty($errors)) {
+            throw new \think\Exception('SQL 执行部分失败: ' . implode('; ', array_slice($errors, 0, 3)));
+        }
+
+        return true;
+    }
+
+    /**
+     * 插件菜单卸载方法（细颗粒度）
+     * 优先调用插件类的 uninstall() 方法，若不存在则直接通过 Menu::delete() 删除
+     * @param string $addon_name 插件名称
+     * @return true
+     * @throws \Exception
+     */
+    protected function addon_uninstall_menu($addon_name)
+    {
+        $class = get_addon_class($addon_name);
+
+        if ($class && class_exists($class)) {
+            $addon = new $class();
+            if (method_exists($addon, 'uninstall')) {
+                Db::startTrans();
+                try {
+                    $addon->uninstall();
+                    Db::commit();
+                } catch (\Exception $e) {
+                    Db::rollback();
+                    throw $e;
+                }
+                return true;
+            }
+        }
+
+        // 降级策略：插件类不存在或无 uninstall 方法，直接用 Menu::delete 删除
+        Db::startTrans();
+        try {
+            \app\common\library\Menu::delete($addon_name);
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            throw new \think\Exception('菜单卸载失败: ' . $e->getMessage());
+        }
+
+        return true;
+    }
+
+    /**
+     * 插件菜单导出方法
+     * 可调用此方法将插件的菜单数据导出为 JSON 格式字符串，方便备份或迁移
+     * @param string $menu_id 菜单ID
+     * @return string|false
+     */
+    protected function addon_export_menu($menu_id)
+    {
+
+    }
+
+    // ==================== 菜单导入导出辅助方法 ====================
+
+    /**
+     * 构建菜单导出数据结构
+     * 将根节点与 Tree 子树合并，递归处理 childlist -> sublist
+     *
+     * @param array $root     根节点（来自 auth_rule 表的一条记录）
+     * @param array $children fast\Tree::getTreeArray() 返回的子树
+     * @return array
+     */
+    private function buildMenuExportData($root, $children = [])
+    {
+        $data = $root;
+        unset($data['id'], $data['pid'], $data['py'], $data['pinyin']);
+        if (!empty($children)) {
+            $data['sublist'] = $this->cleanExportChildren($children);
+        }
+        return $data;
+    }
+
+    /**
+     * 递归清洗导出子节点：去除 id/pid/spacer，将 childlist 重命名为 sublist
+     *
+     * @param array $children
+     * @return array
+     */
+    private function cleanExportChildren($children)
+    {
+        $result = [];
+        foreach ($children as $child) {
+            $item = $child;
+            unset($item['id'], $item['pid'], $item['py'], $item['pinyin'], $item['spacer']);
+            if (!empty($child['childlist'])) {
+                $item['sublist'] = $this->cleanExportChildren($child['childlist']);
+            }
+            // 始终移除 childlist，有子节点时已转为 sublist，无子节点时彻底清除
+            unset($item['childlist']);
+            $result[] = $item;
+        }
+        return $result;
+    }
+
+    /**
+     * 美化 var_export 输出为现代 PHP 短数组语法
+     *
+     * @param mixed $data
+     * @return string
+     */
+    private function varExportPretty($data)
+    {
+        $export = var_export($data, true);
+        // 去除数字索引键（var_export 会生成 0 =>, 1 => 等）
+        $export = preg_replace('/^(\s*)\d+ => /m', '$1', $export);
+        // array ( -> [
+        $export = preg_replace('/^(\s*)array \(/m', '$1[', $export);
+        // ) -> ]（var_export 的每个 ) 都在独立行）
+        $export = preg_replace('/^(\s*)\)/m', '$1]', $export);
+        return $export;
+    }
+
+    /**
+     * 清洗用户粘贴的菜单代码字符串
+     * 去除 PHP 标签、变量赋值、结尾分号
+     *
+     * @param string $code
+     * @return string
+     */
+    private function cleanMenuCode($code)
+    {
+        $code = trim($code);
+        // 去除开头的 PHP 标签
+        $code = preg_replace('/^<\?php\s*/i', '', $code);
+        // 去除变量赋值语句，如 $menu = , $menus = 等
+        $code = preg_replace('/^\$[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*\s*=\s*/', '', $code);
+        // 去除结尾分号
+        $code = rtrim($code, ";\t\n\r\0\x0B ");
+        return trim($code);
+    }
+
+    /**
+     * 安全解析 PHP 数组字符串（token_get_all 词法分析，零代码执行）
+     *
+     * @param string $code PHP 数组字面量字符串
+     * @return array
+     */
+    private function parseTokenArray($code)
+    {
+        $code = trim($code);
+        if (empty($code)) {
+            return [];
+        }
+        $tokens = token_get_all('<?php ' . $code);
+        $index = 0;
+        // 跳过开头的 T_OPEN_TAG
+        while ($index < count($tokens)) {
+            if (is_array($tokens[$index]) && $tokens[$index][0] === T_OPEN_TAG) {
+                $index++;
+            } else {
+                break;
+            }
+        }
+        // 跳过顶部外层 '['，避免 parseArrayTokens 多包一层
+        while ($index < count($tokens) && (is_array($tokens[$index]) && $tokens[$index][0] === T_WHITESPACE || $tokens[$index] === '[')) {
+            if ($tokens[$index] === '[') {
+                $index++;
+                break;
+            }
+            $index++;
+        }
+        return $this->parseArrayTokens($tokens, $index);
+    }
+
+    /**
+     * 递归解析 token 流为 PHP 数组
+     *
+     * @param array $tokens
+     * @param int   &$index
+     * @return array
+     */
+    private function parseArrayTokens(&$tokens, &$index)
+    {
+        $result = [];
+        $key = null;
+        $count = count($tokens);
+
+        while ($index < $count) {
+            $token = $tokens[$index];
+            $index++;
+
+            if (is_array($token)) {
+                switch ($token[0]) {
+                    case T_ARRAY:
+                        // array(...) 语法：跳过 (
+                        while ($index < $count) {
+                            $t = $tokens[$index];
+                            $index++;
+                            if ($t === '(') break;
+                        }
+                        $value = $this->parseArrayTokens($tokens, $index);
+                        if ($key !== null) {
+                            $result[$key] = $value;
+                            $key = null;
+                        } else {
+                            $result[] = $value;
+                        }
+                        break;
+
+                    case T_CONSTANT_ENCAPSED_STRING:
+                        $value = $this->resolveString($token[1]);
+                        if ($key !== null) {
+                            $result[$key] = $value;
+                            $key = null;
+                        } else {
+                            $result[] = $value;
+                        }
+                        break;
+
+                    case T_DOUBLE_ARROW:
+                        // => 箭头，上一个值变为键
+                        $key = array_pop($result);
+                        break;
+
+                    case T_LNUMBER:
+                        $value = (int)$token[1];
+                        if ($key !== null) {
+                            $result[$key] = $value;
+                            $key = null;
+                        } else {
+                            $result[] = $value;
+                        }
+                        break;
+
+                    case T_DNUMBER:
+                        $value = (float)$token[1];
+                        if ($key !== null) {
+                            $result[$key] = $value;
+                            $key = null;
+                        } else {
+                            $result[] = $value;
+                        }
+                        break;
+
+                    case T_STRING:
+                        // 未加引号的字符串（常量名/关键字 null/true/false）
+                        $lower = strtolower($token[1]);
+                        if ($lower === 'null') {
+                            $value = null;
+                        } elseif ($lower === 'true') {
+                            $value = true;
+                        } elseif ($lower === 'false') {
+                            $value = false;
+                        } else {
+                            $value = $token[1];
+                        }
+                        if ($key !== null) {
+                            $result[$key] = $value;
+                            $key = null;
+                        } else {
+                            $result[] = $value;
+                        }
+                        break;
+
+                    case T_WHITESPACE:
+                    case T_COMMENT:
+                    case T_DOC_COMMENT:
+                        break;
+
+                    default:
+                        break;
+                }
+            } else {
+                // 单字符 token
+                switch ($token) {
+                    case '[':
+                        $value = $this->parseArrayTokens($tokens, $index);
+                        if ($key !== null) {
+                            $result[$key] = $value;
+                            $key = null;
+                        } else {
+                            $result[] = $value;
+                        }
+                        break;
+
+                    case ']':
+                    case ')':
+                        return $result;
+
+                    case ',':
+                        $key = null;
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * 将 PHP token 字符串值解析为实际字符串
+     *
+     * @param string $str token 原始字符串（含引号）
+     * @return string
+     */
+    private function resolveString($str)
+    {
+        if ($str === '' || strlen($str) < 2) {
+            return '';
+        }
+        $quote = $str[0];
+        $content = substr($str, 1, -1);
+
+        if ($quote === "'") {
+            return str_replace(["\\\\", "\\'"], ["\\", "'"], $content);
+        } else {
+            return str_replace(
+                ['\\\\', '\\"', '\\n', '\\r', '\\t', '\\$'],
+                ['\\', '"', "\n", "\r", "\t", '$'],
+                $content
+            );
+        }
     }
 
 }
