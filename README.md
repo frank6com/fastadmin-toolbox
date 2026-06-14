@@ -43,6 +43,10 @@
 
 ![密码生成器](assets/images/preview_password.png)
 
+![本地插件管理器](assets/images/preview_addons.png)
+
+![菜单代码管理器](assets/images/preview_rules.png)
+
 ## 交流 QQ 群
 
 群号：[9735629](https://qm.qq.com/q/VB9i1gS56a) （可点击链接加入）
