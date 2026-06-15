@@ -881,6 +881,9 @@ class Toolbox extends Backend
             $result = false;
             try {
                 switch ($params['action']) {
+                    case 'install':
+                        $result = $this->addon_install_by_dir($addonName);
+                        break;
                     case 'install-menu':
                         $result = $this->addon_install_menu($addonName);
                         break;
@@ -979,6 +982,26 @@ class Toolbox extends Backend
                                         events: Table.api.events.operate,
                                         formatter: Table.api.formatter.operate,
                                         buttons: [
+                                            {
+                                                name: "install",
+                                                text: "插件安装",
+                                                title: "插件安装",
+                                                classname: "btn btn-xs btn-default btn-install btn-ajax",
+                                                icon: "fa fa-plus",
+                                                url: function(row){
+                                                    return 'toolbox/addons?action=install&name=' + row.name;
+                                                },
+                                                confirm: '此操作将新安装插件，确认继续吗？',
+                                                success: function (data, ret) {
+                                                    Layer.msg(ret.msg || '安装成功', {icon: 1});
+                                                    Fast.api.refreshmenu();
+                                                    return false;
+                                                },
+                                                error: function (data, ret) {
+                                                    Layer.alert(ret.msg || '安装失败', {icon: 2});
+                                                    return false;
+                                                }
+                                            },
                                             {
                                                 name: "install_menu",
                                                 text: "安装菜单",
@@ -2223,7 +2246,58 @@ class Toolbox extends Backend
         return $html; // 未找到匹配的结束 div
     }
 
+    /**
+     * 插件安装方法（基于addons中已有插件文件）
+     * 参照 Service::install 实现，跳过下载/解压步骤
+     * @param string $addon_name 插件名称
+     * @return true
+     * @throws \Exception
+     */
+    protected function addon_install_by_dir($addon_name)
+    {
+        $addonDir = ADDON_PATH . $addon_name . DS;
 
+        // 检查 info.ini
+        $infoFile = $addonDir . 'info.ini';
+        if (!is_file($infoFile)) {
+            throw new \think\Exception('插件 info.ini 文件不存在');
+        }
+
+        // 检查文件冲突
+        Service::noconflict($addon_name);
+
+        // 获取插件信息
+        $info = get_addon_info($addon_name);
+
+        Db::startTrans();
+        try {
+            // 设置为启用状态
+            if (!$info['state']) {
+                $info['state'] = 1;
+                set_addon_info($addon_name, $info);
+            }
+
+            // 执行插件的 install() 方法
+            $class = get_addon_class($addon_name);
+            if (class_exists($class)) {
+                $addon = new $class();
+                $addon->install();
+            }
+
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            throw new \think\Exception('插件安装失败: ' . $e->getMessage());
+        }
+
+        // 导入 install.sql
+        Service::importsql($addon_name);
+
+        // 启用插件（复制全局资源文件、刷新缓存）
+        Service::enable($addon_name, true);
+
+        return true;
+    }
     /**
      * 插件菜单安装方法（细颗粒度）
      * 仅调用插件类的 install() 方法安装菜单，不修改插件状态和文件
