@@ -993,9 +993,9 @@ class Toolbox extends Backend
                                                 },
                                                 confirm: function(row){
                                                     if (Config.addon_pure_mode) {
-                                                        return '此操作将新安装插件。\n\n⚠️ 检测到系统已开启「插件纯净模式」(addon_pure_mode)，' +
+                                                        return '此操作将新安装插件。<br><br>\u26A0\uFE0F 检测到系统已开启「插件纯净模式」(addon_pure_mode)，' +
                                                                '该模式通常会在启用后删除插件目录下的 application/、public/、assets/ 源码文件。' +
-                                                               '\n\n工具箱将自动临时关闭纯净模式以保护您的源文件不被清除，安装完成后恢复原配置。\n\n确认继续吗？';
+                                                               '<br><br>工具箱将自动临时关闭纯净模式以保护您的源文件不被清除，安装完成后恢复原配置。<br><br>确认继续吗？';
                                                     }
                                                     return '此操作将新安装插件，确认继续吗？';
                                                 },
