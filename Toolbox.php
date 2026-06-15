@@ -991,7 +991,14 @@ class Toolbox extends Backend
                                                 url: function(row){
                                                     return 'toolbox/addons?action=install&name=' + row.name;
                                                 },
-                                                confirm: '此操作将新安装插件，确认继续吗？',
+                                                confirm: function(row){
+                                                    if (Config.addon_pure_mode) {
+                                                        return '此操作将新安装插件。\n\n⚠️ 检测到系统已开启「插件纯净模式」(addon_pure_mode)，' +
+                                                               '该模式通常会在启用后删除插件目录下的 application/、public/、assets/ 源码文件。' +
+                                                               '\n\n工具箱将自动临时关闭纯净模式以保护您的源文件不被清除，安装完成后恢复原配置。\n\n确认继续吗？';
+                                                    }
+                                                    return '此操作将新安装插件，确认继续吗？';
+                                                },
                                                 success: function (data, ret) {
                                                     Layer.msg(ret.msg || '安装成功', {icon: 1});
                                                     Fast.api.refreshmenu();
@@ -1138,6 +1145,7 @@ class Toolbox extends Backend
         JS;
 
         $styles = '';
+        $this->assignconfig('addon_pure_mode', config('fastadmin.addon_pure_mode'));
         return $this->renderTpl($title, $desc, 'addon/index', '', '', $scripts, $styles);
     }
 
@@ -2293,8 +2301,20 @@ class Toolbox extends Backend
         // 导入 install.sql
         Service::importsql($addon_name);
 
+        // 临时关闭纯净模式，防止 Service::enable() 删除插件目录下的
+        // application、public、assets 源码文件
+        $pureMode = config('fastadmin.addon_pure_mode');
+        if ($pureMode) {
+            Config::set('fastadmin.addon_pure_mode', false);
+        }
+
         // 启用插件（复制全局资源文件、刷新缓存）
         Service::enable($addon_name, true);
+
+        // 恢复纯净模式配置
+        if ($pureMode) {
+            Config::set('fastadmin.addon_pure_mode', true);
+        }
 
         return true;
     }
