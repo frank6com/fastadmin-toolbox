@@ -51,12 +51,14 @@ wget -O application/admin/controller/Toolbox.php https://raw.githubusercontent.c
 
 | | |
 |:---:|:---:|
-| ![工具箱首页](assets/images/preview_index.png) | ![系统环境信息](assets/images/preview_phpinfo.png) |
-| *工具箱首页* | *系统环境信息* |
-| ![检查更新](assets/images/preview_phpinfo_2.png) | ![密码生成器](assets/images/preview_password.png) |
-| *系统环境信息 - 检查更新* | *密码生成器* |
+| ![工具箱首页](assets/images/preview_index.png) | ![密码生成器](assets/images/preview_password.png) |
+| *工具箱首页* | *密码生成器* |
+| ![系统环境信息](assets/images/preview_phpinfo.png) | ![检查更新](assets/images/preview_phpinfo_2.png) | 
+| *系统环境信息* | *系统环境信息 - 检查更新* |
 | ![菜单代码管理器](assets/images/preview_rules.png) | ![本地插件管理器](assets/images/preview_addons.png) |
 | *菜单代码管理器* | *本地插件管理器* |
+| ![插件开发监听器](assets/images/preview_addon_watcher.png) |  |
+| *插件开发监听器* |   |
 
 ## 交流 QQ 群
 

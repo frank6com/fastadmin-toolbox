@@ -19,6 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
+    protected $version = '1.7.0';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -86,7 +87,7 @@ class Toolbox extends Backend
                     {$content}
                 </div>
                 <div class="toolbox-footer" style="text-align:center;color:#999;margin-top:30px;padding:15px 0;border-top:1px solid #eee;">
-                    FastAdmin Toolbox · FA开发工具箱
+                    FastAdmin Toolbox · <a href="https://github.com/frank6com/fastadmin-toolbox">FA开发工具箱</a>
                 </div>
             </div>
         HTML;
@@ -1861,23 +1862,10 @@ class Toolbox extends Backend
     {
         $rootPath = ROOT_PATH;
 
-        // 下载源 URL 配置
-        $fileUrls = [
-            'watch'  => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev-watch.js',
-            'sync'   => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev-sync.js',
-            'config' => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev.config.js',
-        ];
-
-        $filePaths = [
-            'watch'  => $rootPath . 'plugin-dev-watch.js',
-            'sync'   => $rootPath . 'plugin-dev-sync.js',
-            'config' => $rootPath . 'plugin-dev.config.js',
-        ];
-
-        $fileNames = [
-            'watch'  => 'plugin-dev-watch.js',
-            'sync'   => 'plugin-dev-sync.js',
-            'config' => 'plugin-dev.config.js',
+        $files = [
+            'watch'  => ['url' => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev-watch.js',  'path' => $rootPath . 'plugin-dev-watch.js',  'name' => 'plugin-dev-watch.js',  'desc' => '核心监听脚本'],
+            'sync'   => ['url' => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev-sync.js',   'path' => $rootPath . 'plugin-dev-sync.js',   'name' => 'plugin-dev-sync.js',   'desc' => '文件同步脚本'],
+            'config' => ['url' => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev.config.js', 'path' => $rootPath . 'plugin-dev.config.js', 'name' => 'plugin-dev.config.js', 'desc' => '监听配置文件'],
         ];
 
         // ==================== POST: 逐项安装 ====================
@@ -1890,8 +1878,8 @@ class Toolbox extends Backend
             }
 
             // ---- 安装 JS 文件 ----
-            if (isset($fileUrls[$item])) {
-                $targetFile = $filePaths[$item];
+            if (isset($files[$item])) {
+                $targetFile = $files[$item]['path'];
 
                 // 检查目录可写
                 if (!is_writable($rootPath)) {
@@ -1899,19 +1887,19 @@ class Toolbox extends Backend
                 }
 
                 // 下载文件
-                $content = $this->downloadFile($fileUrls[$item]);
+                $content = $this->downloadFile($files[$item]['url']);
                 if ($content === false) {
-                    $this->error('下载失败，请检查网络连接: ' . $fileUrls[$item]);
+                    $this->error('下载失败，请检查网络连接: ' . $files[$item]['url']);
                 }
 
                 // 写入文件
                 $result = @file_put_contents($targetFile, $content);
                 if ($result === false) {
-                    $this->error('写入文件失败: ' . $fileNames[$item]);
+                    $this->error('写入文件失败: ' . $files[$item]['name']);
                 }
 
-                $this->success($fileNames[$item] . ' 安装成功', '', [
-                    'file' => $fileNames[$item],
+                $this->success($files[$item]['name'] . ' 安装成功', '', [
+                    'file' => $files[$item]['name'],
                 ]);
             }
 
@@ -1973,12 +1961,12 @@ class Toolbox extends Backend
         $checklist = [];
 
         // 检测三个 JS 文件
-        foreach (['watch', 'sync', 'config'] as $key) {
+        foreach ($files as $key => $f) {
             $checklist[] = [
                 'id'        => $key,
-                'name'      => $fileNames[$key],
-                'desc'      => $key === 'watch' ? '核心监听脚本' : ($key === 'sync' ? '文件同步脚本' : '监听配置文件'),
-                'installed' => is_file($filePaths[$key]),
+                'name'      => $f['name'],
+                'desc'      => $f['desc'],
+                'installed' => is_file($f['path']),
                 'conflict'  => null,
             ];
         }
@@ -2071,8 +2059,14 @@ class Toolbox extends Backend
                     <p style="font-size:15px;color:#3c763d;margin:0 0 10px;">
                         <i class="fa fa-check-circle" style="font-size:20px;"></i> 插件监视器已全部安装完成！
                     </p>
-                    <div class="watcher-cmd-box" style="display:inline-block;background:#333;color:#fff;padding:10px 20px;border-radius:4px;font-family:monospace;font-size:14px;margin-bottom:10px;">
-                        npm run dev [插件目录名称]
+                    <p style="color:#856404;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:8px 14px;font-size:12px;display:inline-block;margin-bottom:12px;">
+                        ⚠️ 请先执行 <code style="background:#fce4b8;padding:1px 5px;border-radius:2px;">npm install --save-dev chokidar fs-extra</code> 安装依赖包
+                        &nbsp;<a href="javascript:;" id="btn-copy-npm-install" style="color:#856404;font-size:12px;" title="一键复制"><i class="fa fa-clipboard"></i></a>
+                    </p>
+                    <br>
+                    <div style="margin-bottom:10px;display:inline-flex;align-items:center;">
+                        <code style="background:#333;color:#fff;padding:6px 12px;border-radius:4px 0 0 4px;font-size:14px;">npm run dev</code>
+                        <input type="text" id="watcher-plugin-name" value="插件目录名称" style="width:160px;padding:6px 8px;border:1px solid #ccc;border-left:none;border-radius:0 4px 4px 0;font-family:monospace;font-size:14px;" placeholder="插件目录名称">
                     </div>
                     <br>
                     <button class="btn btn-sm btn-default" id="btn-watcher-copy-cmd"><i class="fa fa-clipboard"></i> 复制命令</button>
@@ -2124,6 +2118,38 @@ class Toolbox extends Backend
             var WatcherPage = {
                 installUrl: Config.toolbox_watcher_url || Config.watcher_install_url,
 
+                copyToClipboard: function(text) {
+                    var textarea = document.createElement("textarea");
+                    textarea.value = text;
+                    textarea.style.position = "fixed";
+                    textarea.style.opacity = "0";
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    try {
+                        var ok = document.execCommand("copy");
+                        if (ok) {
+                            Layer.msg("已复制到剪贴板", {icon: 1});
+                        } else {
+                            Layer.msg("复制失败，请手动复制", {icon: 0});
+                        }
+                    } catch (e) {
+                        Layer.msg("复制失败，请手动复制", {icon: 0});
+                    }
+                    document.body.removeChild(textarea);
+                },
+
+                escapeHtml: function(str) {
+                    return String(str).replace(/[<>&"]/g, function(c) {
+                        return {"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;"}[c];
+                    });
+                },
+
+                markRowInstalled: function($row, $btn) {
+                    $row.find(".watcher-status").html("<i class=\"fa fa-check-circle\" style=\"color:#18bc9c;\"></i>");
+                    $row.find(".watcher-status-label span").removeClass("text-danger text-warning").addClass("text-success").text("已安装");
+                    $btn.replaceWith("<button class=\"btn btn-xs btn-default\" disabled><i class=\"fa fa-check\"></i> 已安装</button>");
+                },
+
                 init: function() {
                     var self = this;
 
@@ -2166,13 +2192,12 @@ class Toolbox extends Backend
                     });
 
                     $("#btn-watcher-copy-cmd").on("click", function() {
-                        if (navigator.clipboard) {
-                            navigator.clipboard.writeText("npm run dev [插件目录名称]").then(function() {
-                                Layer.msg("已复制到剪贴板", {icon: 1});
-                            });
-                        } else {
-                            Layer.msg("请手动复制: npm run dev [插件目录名称]", {icon: 0});
-                        }
+                        var name = $("#watcher-plugin-name").val().trim() || "插件目录名称";
+                        self.copyToClipboard("npm run dev " + name);
+                    });
+
+                    $("#btn-copy-npm-install").on("click", function() {
+                        self.copyToClipboard("npm install --save-dev chokidar fs-extra");
                     });
 
                     if (Config.watcher_has_conflict) {
@@ -2204,9 +2229,7 @@ class Toolbox extends Backend
                                     return;
                                 }
                                 Layer.msg(res.msg || "安装成功", {icon: 1});
-                                $row.find(".watcher-status").html("<i class=\"fa fa-check-circle\" style=\"color:#18bc9c;\"></i>");
-                                $row.find(".watcher-status-label span").removeClass("text-danger").addClass("text-success").text("已安装");
-                                $btn.replaceWith("<button class=\"btn btn-xs btn-default\" disabled><i class=\"fa fa-check\"></i> 已安装</button>");
+                                self.markRowInstalled($row, $btn);
                             } else {
                                 Layer.alert(res.msg || "安装失败", {icon: 2});
                             }
@@ -2247,9 +2270,7 @@ class Toolbox extends Backend
                         dataType: "json",
                         success: function(res) {
                             if (res.code === 1) {
-                                $row.find(".watcher-status").html("<i class=\"fa fa-check-circle\" style=\"color:#18bc9c;\"></i>");
-                                $row.find(".watcher-status-label span").removeClass("text-danger").addClass("text-success").text("已安装");
-                                $btn.replaceWith("<button class=\"btn btn-xs btn-default\" disabled><i class=\"fa fa-check\"></i> 已安装</button>");
+                                self.markRowInstalled($row, $btn);
                             }
                             self.installBatch(items, index + 1, hasConflict);
                         },
@@ -2267,8 +2288,8 @@ class Toolbox extends Backend
                     html += "<p style=\"color:#f0ad4e;font-size:14px;\"><i class=\"fa fa-exclamation-triangle\"></i> <strong>dev 命令冲突</strong></p>";
                     html += "<p style=\"color:#666;\">package.json 中已存在 <code>scripts.dev</code>，但值与期望不匹配：</p>";
                     html += "<table class=\"table table-bordered\" style=\"font-size:12px;\">";
-                    html += "<tr><td style=\"width:80px;font-weight:600;\">当前值</td><td><code style=\"color:#d9534f;\">" + current.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code></td></tr>";
-                    html += "<tr><td style=\"font-weight:600;\">期望值</td><td><code style=\"color:#18bc9c;\">" + expected.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code></td></tr>";
+                    html += "<tr><td style=\"width:80px;font-weight:600;\">当前值</td><td><code style=\"color:#d9534f;\">" + self.escapeHtml(current) + "</code></td></tr>";
+                    html += "<tr><td style=\"font-weight:600;\">期望值</td><td><code style=\"color:#18bc9c;\">" + self.escapeHtml(expected) + "</code></td></tr>";
                     html += "</table>";
                     html += "<p style=\"color:#888;font-size:12px;margin-top:10px;\">";
                     html += "请手动编辑项目根目录下的 <code>package.json</code> 文件，<br>";
