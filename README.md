@@ -26,13 +26,17 @@
 将 `Toolbox.php` 放入 `application/admin/controller/` 目录即可。在项目根目录下可通过 `curl` 或 `wget` 一键下载：
 
 ```shell
-# 使用 curl 下载
+# 使用 curl 下载 github 源
 curl -o application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin-toolbox/master/Toolbox.php
-```
 
-```shell
-# 使用 wget 下载
+# 使用 curl 下载 gitee 源
+curl -o application/admin/controller/Toolbox.php https://gitee.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php
+
+# 使用 wget 下载 github 源
 wget -O application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin-toolbox/master/Toolbox.php
+
+# 使用 wget 下载 gitee 源
+wget -O application/admin/controller/Toolbox.php https://gitee.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php
 ```
 
 ### 访问页面
