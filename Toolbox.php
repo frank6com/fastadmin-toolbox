@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.7.0';
+    protected $version = '1.8.0';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -589,6 +589,8 @@ class Toolbox extends Backend
             'toolbox_docs' => $docs,
             'toolbox_doc_pagesize' => $pageSize,
             'toolbox_doc_totalpages' => $totalPages,
+            'toolbox_selfupdate_check_url' => url('checkToolboxUpdate'),
+            'toolbox_selfupdate_do_url'   => url('doToolboxUpdate'),
         ]);
 
         $docCards = '';
@@ -608,6 +610,8 @@ class Toolbox extends Backend
                 </a>
             CARD;
         }
+
+        $toolboxVersion = $this->version;
 
         $content = <<<HTML
             <style>
@@ -675,6 +679,12 @@ class Toolbox extends Backend
             <div class="tb-hero">
                 <h2><i class="fa fa-wrench" style="color:#18bc9c;"></i> FastAdmin 开发工具箱</h2>
                 <p class="tb-hero-sub">开发辅助工具集 · 仅调试模式下可用</p>
+                <p class="tb-hero-version" style="margin-top:8px;color:#888;font-size:12px;">
+                    工具箱版本：<strong style="color:#18bc9c;">v{$toolboxVersion}</strong>
+                    <a href="javascript:;" class="btn btn-xs btn-info btn-check-toolbox-update" style="margin-left:8px;">
+                        <i class="fa fa-refresh"></i> 检查更新
+                    </a>
+                </p>
             </div>
 
             <div class="tb-main-row">
@@ -745,6 +755,86 @@ class Toolbox extends Backend
                 });
 
                 renderPage(1);
+
+                /* ====== 工具箱自更新 ====== */
+                $(".btn-check-toolbox-update").on("click", function() {
+                    var $btn = $(this);
+                    $btn.prop("disabled", true).html("<i class=\"fa fa-spinner fa-spin\"></i> 检测中");
+
+                    $.ajax({
+                        url: Config.toolbox_selfupdate_check_url,
+                        type: "POST",
+                        dataType: "json",
+                        success: function(res) {
+                            $btn.prop("disabled", false).html("<i class=\"fa fa-refresh\"></i> 检查更新");
+                            if (res.code !== 1) {
+                                Layer.msg("检查失败: " + (res.msg || "未知错误"), {icon: 2});
+                                return;
+                            }
+                            if (!res.data || !res.data.has_update) {
+                                Layer.msg("当前已是最新版 v" + (res.data ? res.data.current_version : ""), {icon: 1});
+                                return;
+                            }
+                            var d = res.data;
+                            Layer.confirm(
+                                "<div style=\"padding:5px 0;\">" +
+                                "<p style=\"color:#d9534f;font-size:15px;\"><i class=\"fa fa-exclamation-triangle\"></i> <strong>⚠️ 危险操作警告</strong></p>" +
+                                "<p>发现工具箱新版本：<strong style=\"color:#18bc9c;\">v" + d.latest_version + "</strong>（当前 v" + d.current_version + "）</p>" +
+                                "<div style=\"background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:10px;margin:10px 0;font-size:12px;color:#856404;\">" +
+                                "<p style=\"margin:0 0 5px;\"><strong>此操作将：</strong></p>" +
+                                "<ul style=\"margin:0;padding-left:18px;\">" +
+                                "<li>下载远程 Toolbox.php 并<strong>覆盖当前控制器文件</strong></li>" +
+                                "<li>覆盖前会自动备份原文件至同目录</li>" +
+                                "<li>更新完成后需<strong>手动刷新页面</strong>生效</li>" +
+                                "</ul></div>" +
+                                "<p style=\"color:#d9534f;font-size:12px;margin:0;\">此操作不可撤销，确认继续？</p>" +
+                                "</div>",
+                                { icon: 0, title: "⚠️ 工具箱自更新", btn: ["取消", "确认更新"] },
+                                function(index) {
+                                    Layer.close(index);
+                                    $btn.prop("disabled", false).html("<i class=\"fa fa-refresh\"></i> 检查更新");
+                                },
+                                function(index) {
+                                    Layer.close(index);
+                                    var idx = Layer.load(1, {shade: [0.3, "#000"]});
+                                    $btn.prop("disabled", true).html("<i class=\"fa fa-spinner fa-spin\"></i> 更新中");
+                                    $.ajax({
+                                        url: Config.toolbox_selfupdate_do_url,
+                                        type: "POST",
+                                        dataType: "json",
+                                        success: function(r) {
+                                            Layer.close(idx);
+                                            if (r.code === 1) {
+                                                Layer.confirm(
+                                                    "<div style=\"padding:10px 0;text-align:center;\">" +
+                                                    "<p style=\"color:#18bc9c;font-size:16px;\"><i class=\"fa fa-check-circle\"></i> 更新完成！</p>" +
+                                                    "<p style=\"color:#666;\">原文件已备份，请刷新页面使新版本生效。</p>" +
+                                                    (r.data && r.data.backup ? "<p style=\"color:#999;font-size:11px;\">备份文件: " + r.data.backup + "</p>" : "") +
+                                                    "</div>",
+                                                    { icon: 1, title: "更新成功", btn: ["稍后刷新", "立即刷新"] },
+                                                    function() {},
+                                                    function() { location.reload(true); }
+                                                );
+                                            } else {
+                                                Layer.alert(r.msg || "更新失败", {icon: 2});
+                                            }
+                                            $btn.prop("disabled", false).html("<i class=\"fa fa-refresh\"></i> 检查更新");
+                                        },
+                                        error: function() {
+                                            Layer.close(idx);
+                                            Layer.alert("网络请求失败", {icon: 2});
+                                            $btn.prop("disabled", false).html("<i class=\"fa fa-refresh\"></i> 检查更新");
+                                        }
+                                    });
+                                }
+                            );
+                        },
+                        error: function() {
+                            $btn.prop("disabled", false).html("<i class=\"fa fa-refresh\"></i> 检查更新");
+                            Layer.msg("网络请求失败", {icon: 2});
+                        }
+                    });
+                });
 
                 /* ====== Konami Code ====== */
                 var SEQUENCE = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
@@ -2547,6 +2637,95 @@ class Toolbox extends Backend
                 'new_versions'    => $newVersions,
             ]);
         }
+    }
+
+    /**
+     * 检查工具箱自身更新
+     *
+     * 从 Gitee 抓取远程 Toolbox.php 提取版本号，与本地 $this->version 对比
+     */
+    public function checkToolboxUpdate()
+    {
+        $this->request->filter(['strip_tags', 'trim']);
+        if (!$this->request->isAjax()) {
+            $this->error(__('请求无效'));
+        }
+
+        $remoteUrl = 'https://gitee.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php';
+        $remoteContent = $this->downloadFile($remoteUrl);
+        if ($remoteContent === false) {
+            $this->error('无法获取远程版本信息，请检查网络连接');
+        }
+
+        // 提取远程版本号
+        if (!preg_match('/protected\s+\$version\s*=\s*\'([\d.]+)\'/', $remoteContent, $match)) {
+            $this->error('无法解析远程版本号');
+        }
+
+        $latestVersion = $match[1];
+        $currentVersion = $this->version;
+
+        if (version_compare($latestVersion, $currentVersion, '>')) {
+            $this->success('发现新版本', null, [
+                'has_update'      => true,
+                'current_version' => $currentVersion,
+                'latest_version'  => $latestVersion,
+            ]);
+        } else {
+            $this->success('当前已是最新版', null, [
+                'has_update'      => false,
+                'current_version' => $currentVersion,
+                'latest_version'  => $latestVersion,
+            ]);
+        }
+    }
+
+    /**
+     * 执行工具箱自更新
+     *
+     * 下载远程 Toolbox.php，校验后覆盖当前控制器文件，覆盖前自动备份
+     */
+    public function doToolboxUpdate()
+    {
+        $this->request->filter(['strip_tags', 'trim']);
+        if (!$this->request->isAjax()) {
+            $this->error(__('请求无效'));
+        }
+
+        $remoteUrl = 'https://gitee.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php';
+        $newContent = $this->downloadFile($remoteUrl);
+        if ($newContent === false) {
+            $this->error('下载远程文件失败，请检查网络连接');
+        }
+
+        // 安全校验：远程内容必须包含合法的控制器类声明
+        if (strpos($newContent, 'class Toolbox extends Backend') === false) {
+            $this->error('远程文件校验失败：未找到合法的控制器类声明，拒绝覆盖');
+        }
+
+        // 检查当前文件是否可写
+        $currentFile = __FILE__;
+        if (!is_writable($currentFile)) {
+            $this->error('当前控制器文件不可写，请检查文件权限: ' . $currentFile);
+        }
+
+        // 备份原文件
+        $backupFile = $currentFile . '.bak.' . date('YmdHis');
+        if (!@copy($currentFile, $backupFile)) {
+            $this->error('备份原文件失败，操作中止');
+        }
+
+        // 写入新内容
+        $written = @file_put_contents($currentFile, $newContent);
+        if ($written === false) {
+            // 写入失败，尝试还原备份
+            @copy($backupFile, $currentFile);
+            $this->error('写入新文件失败，已还原原文件');
+        }
+
+        $this->success('工具箱更新成功', null, [
+            'backup' => basename($backupFile),
+        ]);
     }
 
     /**
