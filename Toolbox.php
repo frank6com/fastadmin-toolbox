@@ -60,6 +60,7 @@ class Toolbox extends Backend
             'toolbox_installer_url' => url('installer'),
             'toolbox_phpinfo_url'   => url('phpinfo'),
             'addon_testdata_url'    => url('addon/testdata'),
+            'toolbox_watcher_url'   => url('addonWatcher'),
         ];
         $this->assignconfig($assignConfig);
 
@@ -236,6 +237,14 @@ class Toolbox extends Backend
                     'url'    => url('rules'),
                     'status' => 'ready',
                     'color'  => '#337ab7',
+                ],
+                [
+                    'icon'   => 'fa-eye',
+                    'title'  => '插件监听器',
+                    'desc'   => '可以在插件开发时监听文件变化并同步至插件目录。',
+                    'url'    => url('addonwatcher'),
+                    'status' => 'ready',
+                    'color'  => '#8e44ad',
                 ],
                 [
                     'icon'   => 'fa-magic',
@@ -1842,6 +1851,489 @@ class Toolbox extends Backend
         return $this->renderPage('本地插件安装 - FastAdmin 工具箱', $content, $scripts, '', true);
     }
 
+    /**
+     * 插件监视器安装管理器
+     *
+     * GET:  检测三个 JS 文件 + package.json dev 脚本的安装状态
+     * POST: 接收 item 参数逐项安装
+     */
+    public function addonWatcher()
+    {
+        $rootPath = ROOT_PATH;
+
+        // 下载源 URL 配置
+        $fileUrls = [
+            'watch'  => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev-watch.js',
+            'sync'   => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev-sync.js',
+            'config' => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev.config.js',
+        ];
+
+        $filePaths = [
+            'watch'  => $rootPath . 'plugin-dev-watch.js',
+            'sync'   => $rootPath . 'plugin-dev-sync.js',
+            'config' => $rootPath . 'plugin-dev.config.js',
+        ];
+
+        $fileNames = [
+            'watch'  => 'plugin-dev-watch.js',
+            'sync'   => 'plugin-dev-sync.js',
+            'config' => 'plugin-dev.config.js',
+        ];
+
+        // ==================== POST: 逐项安装 ====================
+        if ($this->request->isPost()) {
+            Config::set('default_return_type', 'json');
+            $item = $this->request->post('item', '');
+
+            if (!in_array($item, ['watch', 'sync', 'config', 'devcmd'], true)) {
+                $this->error('无效的安装项: ' . $item);
+            }
+
+            // ---- 安装 JS 文件 ----
+            if (isset($fileUrls[$item])) {
+                $targetFile = $filePaths[$item];
+
+                // 检查目录可写
+                if (!is_writable($rootPath)) {
+                    $this->error('项目根目录不可写，请检查权限: ' . $rootPath);
+                }
+
+                // 下载文件
+                $content = $this->downloadFile($fileUrls[$item]);
+                if ($content === false) {
+                    $this->error('下载失败，请检查网络连接: ' . $fileUrls[$item]);
+                }
+
+                // 写入文件
+                $result = @file_put_contents($targetFile, $content);
+                if ($result === false) {
+                    $this->error('写入文件失败: ' . $fileNames[$item]);
+                }
+
+                $this->success($fileNames[$item] . ' 安装成功', '', [
+                    'file' => $fileNames[$item],
+                ]);
+            }
+
+            // ---- 安装 devcmd ----
+            if ($item === 'devcmd') {
+                $pkgFile = $rootPath . 'package.json';
+
+                if (!is_file($pkgFile)) {
+                    $this->error('package.json 文件不存在');
+                }
+                if (!is_writable($pkgFile)) {
+                    $this->error('package.json 不可写，请检查权限');
+                }
+
+                $pkg = json_decode(file_get_contents($pkgFile), true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $this->error('package.json 解析失败: ' . json_last_error_msg());
+                }
+
+                $targetScript = 'node plugin-dev-watch.js';
+
+                // 检查冲突
+                if (isset($pkg['scripts']['dev'])) {
+                    $current = $pkg['scripts']['dev'];
+                    if ($current === $targetScript) {
+                        $this->success('dev 命令已正确配置');
+                    }
+                    // 冲突：返回冲突信息
+                    $this->success('dev 命令已存在但值不匹配', '', [
+                        'conflict'     => true,
+                        'currentValue' => $current,
+                        'expectedValue' => $targetScript,
+                    ]);
+                }
+
+                // 无冲突，写入
+                if (!isset($pkg['scripts'])) {
+                    $pkg['scripts'] = [];
+                }
+                $pkg['scripts']['dev'] = $targetScript;
+
+                $written = @file_put_contents(
+                    $pkgFile,
+                    json_encode($pkg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n"
+                );
+                if ($written === false) {
+                    $this->error('写入 package.json 失败');
+                }
+
+                $this->success('dev 命令配置成功', '', [
+                    'conflict' => false,
+                ]);
+            }
+
+            $this->error('未知安装项');
+        }
+
+        // ==================== GET: 检测清单 ====================
+        $checklist = [];
+
+        // 检测三个 JS 文件
+        foreach (['watch', 'sync', 'config'] as $key) {
+            $checklist[] = [
+                'id'        => $key,
+                'name'      => $fileNames[$key],
+                'desc'      => $key === 'watch' ? '核心监听脚本' : ($key === 'sync' ? '文件同步脚本' : '监听配置文件'),
+                'installed' => is_file($filePaths[$key]),
+                'conflict'  => null,
+            ];
+        }
+
+        // 检测 package.json dev 命令
+        $devConflict = null;
+        $devInstalled = false;
+        $pkgFile = $rootPath . 'package.json';
+        if (is_file($pkgFile)) {
+            $pkg = json_decode(file_get_contents($pkgFile), true);
+            if (isset($pkg['scripts']['dev'])) {
+                $current = $pkg['scripts']['dev'];
+                if ($current === 'node plugin-dev-watch.js') {
+                    $devInstalled = true;
+                } else {
+                    $devConflict = $current;
+                }
+            }
+        }
+
+        $checklist[] = [
+            'id'        => 'devcmd',
+            'name'      => 'package.json dev 命令',
+            'desc'      => 'npm run dev 快捷命令',
+            'installed' => $devInstalled,
+            'conflict'  => $devConflict,
+        ];
+
+        // 计算统计
+        $installedCount = 0;
+        foreach ($checklist as $c) {
+            if ($c['installed']) $installedCount++;
+        }
+        $allInstalled = $installedCount === count($checklist);
+        $hasConflict = $devConflict !== null;
+
+        $this->assignconfig([
+            'watcher_checklist'   => $checklist,
+            'watcher_all_ok'      => $allInstalled,
+            'watcher_has_conflict' => $hasConflict,
+            'watcher_install_url' => url('addonWatcher'),
+        ]);
+
+        // ==================== 构建清单 HTML ====================
+        $rows = '';
+        foreach ($checklist as $item) {
+            $icon = $item['installed'] ? '<i class="fa fa-check-circle" style="color:#18bc9c;"></i>' : '<i class="fa fa-times-circle" style="color:#d9534f;"></i>';
+            $statusText = $item['installed'] ? '已安装' : '未安装';
+            $statusClass = $item['installed'] ? 'text-success' : 'text-danger';
+
+            if ($item['conflict']) {
+                $icon = '<i class="fa fa-exclamation-triangle" style="color:#f0ad4e;"></i>';
+                $statusText = '冲突';
+                $statusClass = 'text-warning';
+            }
+
+            $conflictHtml = '';
+            if ($item['conflict']) {
+                $conflictHtml = '<span class="watcher-conflict-hint" style="font-size:11px;color:#f0ad4e;margin-left:6px;">当前值: <code>' . htmlspecialchars($item['conflict']) . '</code></span>';
+            }
+
+            if ($item['installed'] && !$item['conflict']) {
+                $btnHtml = '<button class="btn btn-xs btn-default" disabled><i class="fa fa-check"></i> 已安装</button>';
+            } elseif ($item['conflict']) {
+                $btnHtml = '<button class="btn btn-xs btn-warning btn-watcher-install" data-item="' . $item['id'] . '"><i class="fa fa-wrench"></i> 查看冲突</button>';
+            } else {
+                $btnHtml = '<button class="btn btn-xs btn-success btn-watcher-install" data-item="' . $item['id'] . '"><i class="fa fa-download"></i> 安装</button>';
+            }
+
+            $rows .= <<<ROW
+                <tr class="watcher-row" data-item="{$item['id']}">
+                    <td class="watcher-status">{$icon}</td>
+                    <td class="watcher-name"><strong>{$item['name']}</strong>{$conflictHtml}</td>
+                    <td class="watcher-desc">{$item['desc']}</td>
+                    <td class="watcher-status-label"><span class="{$statusClass}">{$statusText}</span></td>
+                    <td class="watcher-action">{$btnHtml}</td>
+                </tr>
+            ROW;
+        }
+
+        $btnAll = '';
+        if (!$allInstalled) {
+            $btnAll = '<button class="btn btn-success" id="btn-watcher-install-all" style="margin-bottom:16px;"><i class="fa fa-download"></i> 一键安装全部</button>';
+        }
+
+        $successPanel = '';
+        if ($allInstalled) {
+            $successPanel = <<<HTML
+                <div class="watcher-success-panel" style="background:#dff0d8;border:1px solid #d6e9c6;border-radius:6px;padding:20px;text-align:center;margin-top:20px;">
+                    <p style="font-size:15px;color:#3c763d;margin:0 0 10px;">
+                        <i class="fa fa-check-circle" style="font-size:20px;"></i> 插件监视器已全部安装完成！
+                    </p>
+                    <div class="watcher-cmd-box" style="display:inline-block;background:#333;color:#fff;padding:10px 20px;border-radius:4px;font-family:monospace;font-size:14px;margin-bottom:10px;">
+                        npm run dev [插件目录名称]
+                    </div>
+                    <br>
+                    <button class="btn btn-sm btn-default" id="btn-watcher-copy-cmd"><i class="fa fa-clipboard"></i> 复制命令</button>
+                    <p style="color:#888;font-size:12px;margin-top:8px;">请在项目根目录终端执行以上命令以启动文件监听同步</p>
+                </div>
+            HTML;
+        }
+
+        $content = <<<HTML
+            <style>
+            .watcher-wrap { max-width:800px; margin:0 auto; }
+            .watcher-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e8ecf1; border-radius:6px; overflow:hidden; }
+            .watcher-table th, .watcher-table td { padding:12px 16px; border-bottom:1px solid #f0f0f0; }
+            .watcher-table th { background:#fafbfc; color:#555; font-size:12px; text-transform:uppercase; letter-spacing:0.5px; text-align:left; }
+            .watcher-table tr:last-child td { border-bottom:none; }
+            .watcher-table tr:hover { background:#fafdfb; }
+            .watcher-status { width:36px; text-align:center; font-size:18px; }
+            .watcher-name { font-size:14px; color:#333; }
+            .watcher-name code { background:#f5f5f5; padding:1px 5px; border-radius:2px; font-size:11px; }
+            .watcher-desc { font-size:12px; color:#999; }
+            .watcher-status-label { width:70px; font-size:12px; font-weight:600; }
+            .watcher-action { width:110px; text-align:center; }
+            .watcher-action .btn { min-width:70px; }
+            </style>
+
+            <div class="tb-hero">
+                <h2><i class="fa fa-eye" style="color:#18bc9c;"></i> 插件监视器安装管理器</h2>
+                <p class="tb-hero-sub">检测并安装插件开发文件同步监视工具</p>
+            </div>
+
+            <div class="watcher-wrap">
+                <div class="tb-cat-section">
+                    <div class="tb-cat-title"><i class="fa fa-list-alt"></i> 组件安装清单</div>
+                    <p style="color:#999;font-size:12px;margin:0 0 10px 2px;">
+                        来源：<a href="https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch" target="_blank">Gitee - FastAdmin Plugin Dev Watch</a>
+                        &nbsp;|&nbsp; 用于在插件开发时同步源文件，确保插件目录下始终是最新文件。
+                    </p>
+                    {$btnAll}
+                    <table class="watcher-table">
+                        <thead><tr><th></th><th>组件</th><th>说明</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody>{$rows}</tbody>
+                    </table>
+                </div>
+                {$successPanel}
+            </div>
+        HTML;
+
+        $scripts = '
+            var WatcherPage = {
+                installUrl: Config.toolbox_watcher_url || Config.watcher_install_url,
+
+                init: function() {
+                    var self = this;
+
+                    $(document).on("click", ".btn-watcher-install", function() {
+                        var $btn = $(this);
+                        var item = $btn.data("item");
+                        var $row = $btn.closest("tr");
+                        var checklist = Config.watcher_checklist || [];
+
+                        var itemData = null;
+                        for (var i = 0; i < checklist.length; i++) {
+                            if (checklist[i].id === item) { itemData = checklist[i]; break; }
+                        }
+
+                        if (itemData && itemData.conflict) {
+                            self.showConflictDialog(itemData);
+                            return;
+                        }
+
+                        self.installItem(item, $btn, $row);
+                    });
+
+                    $("#btn-watcher-install-all").on("click", function() {
+                        var checklist = Config.watcher_checklist || [];
+                        var pending = [];
+                        for (var i = 0; i < checklist.length; i++) {
+                            if (!checklist[i].installed && !checklist[i].conflict) {
+                                pending.push(checklist[i].id);
+                            }
+                        }
+                        if (pending.length === 0) {
+                            Layer.msg("所有组件已安装", {icon: 1});
+                            return;
+                        }
+                        var hasConflict = false;
+                        for (var j = 0; j < checklist.length; j++) {
+                            if (checklist[j].conflict) { hasConflict = true; break; }
+                        }
+                        self.installBatch(pending, 0, hasConflict);
+                    });
+
+                    $("#btn-watcher-copy-cmd").on("click", function() {
+                        if (navigator.clipboard) {
+                            navigator.clipboard.writeText("npm run dev [插件目录名称]").then(function() {
+                                Layer.msg("已复制到剪贴板", {icon: 1});
+                            });
+                        } else {
+                            Layer.msg("请手动复制: npm run dev [插件目录名称]", {icon: 0});
+                        }
+                    });
+
+                    if (Config.watcher_has_conflict) {
+                        setTimeout(function() {
+                            Layer.msg("检测到 package.json dev 命令冲突，请点击「查看冲突」", {icon: 0, time: 5000});
+                        }, 500);
+                    }
+                },
+
+                installItem: function(item, $btn, $row) {
+                    var self = this;
+                    $btn.prop("disabled", true).html("<i class=\"fa fa-spinner fa-spin\"></i> 安装中");
+
+                    $.ajax({
+                        url: self.installUrl,
+                        type: "POST",
+                        data: { item: item },
+                        dataType: "json",
+                        success: function(res) {
+                            if (res.code === 1) {
+                                if (res.data && res.data.conflict) {
+                                    self.showConflictDialog({
+                                        id: item,
+                                        name: "package.json dev 命令",
+                                        conflict: res.data.currentValue,
+                                        expectedValue: res.data.expectedValue
+                                    });
+                                    $btn.prop("disabled", false).html("<i class=\"fa fa-wrench\"></i> 查看冲突");
+                                    return;
+                                }
+                                Layer.msg(res.msg || "安装成功", {icon: 1});
+                                $row.find(".watcher-status").html("<i class=\"fa fa-check-circle\" style=\"color:#18bc9c;\"></i>");
+                                $row.find(".watcher-status-label span").removeClass("text-danger").addClass("text-success").text("已安装");
+                                $btn.replaceWith("<button class=\"btn btn-xs btn-default\" disabled><i class=\"fa fa-check\"></i> 已安装</button>");
+                            } else {
+                                Layer.alert(res.msg || "安装失败", {icon: 2});
+                            }
+                            $btn.prop("disabled", false);
+                        },
+                        error: function(xhr) {
+                            var msg = "请求失败";
+                            try { var r = JSON.parse(xhr.responseText); msg = r.msg || msg; } catch(e) {}
+                            Layer.alert(msg, {icon: 2});
+                            $btn.prop("disabled", false);
+                        }
+                    });
+                },
+
+                installBatch: function(items, index, hasConflict) {
+                    var self = this;
+                    if (index >= items.length) {
+                        Layer.msg("全部安装完成！", {icon: 1});
+                        if (hasConflict) {
+                            Layer.msg("请单独处理 package.json dev 命令的冲突", {icon: 0, time: 4000});
+                        } else {
+                            setTimeout(function() { location.reload(); }, 1000);
+                        }
+                        return;
+                    }
+
+                    var item = items[index];
+                    var $row = $("tr.watcher-row[data-item=\"" + item + "\"]");
+                    var $btn = $row.find(".btn-watcher-install");
+
+                    Layer.msg("正在安装: " + item + " (" + (index + 1) + "/" + items.length + ")", {time: 1000});
+                    $btn.prop("disabled", true).html("<i class=\"fa fa-spinner fa-spin\"></i>");
+
+                    $.ajax({
+                        url: self.installUrl,
+                        type: "POST",
+                        data: { item: item },
+                        dataType: "json",
+                        success: function(res) {
+                            if (res.code === 1) {
+                                $row.find(".watcher-status").html("<i class=\"fa fa-check-circle\" style=\"color:#18bc9c;\"></i>");
+                                $row.find(".watcher-status-label span").removeClass("text-danger").addClass("text-success").text("已安装");
+                                $btn.replaceWith("<button class=\"btn btn-xs btn-default\" disabled><i class=\"fa fa-check\"></i> 已安装</button>");
+                            }
+                            self.installBatch(items, index + 1, hasConflict);
+                        },
+                        error: function() {
+                            self.installBatch(items, index + 1, hasConflict);
+                        }
+                    });
+                },
+
+                showConflictDialog: function(itemData) {
+                    var current = itemData.conflict || "未知";
+                    var expected = itemData.expectedValue || "node plugin-dev-watch.js";
+
+                    var html = "<div style=\"padding:10px;\">";
+                    html += "<p style=\"color:#f0ad4e;font-size:14px;\"><i class=\"fa fa-exclamation-triangle\"></i> <strong>dev 命令冲突</strong></p>";
+                    html += "<p style=\"color:#666;\">package.json 中已存在 <code>scripts.dev</code>，但值与期望不匹配：</p>";
+                    html += "<table class=\"table table-bordered\" style=\"font-size:12px;\">";
+                    html += "<tr><td style=\"width:80px;font-weight:600;\">当前值</td><td><code style=\"color:#d9534f;\">" + current.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code></td></tr>";
+                    html += "<tr><td style=\"font-weight:600;\">期望值</td><td><code style=\"color:#18bc9c;\">" + expected.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</code></td></tr>";
+                    html += "</table>";
+                    html += "<p style=\"color:#888;font-size:12px;margin-top:10px;\">";
+                    html += "请手动编辑项目根目录下的 <code>package.json</code> 文件，<br>";
+                    html += "将 <code>scripts</code> 中的 <code>dev</code> 字段修改为以上期望值。<br><br>";
+                    html += "或者将 <code>dev</code> 重命名为其他名称后，重新点击安装。";
+                    html += "</p></div>";
+
+                    Layer.open({
+                        type: 1,
+                        title: "冲突详情 — 如何修复",
+                        area: ["560px", "360px"],
+                        content: html,
+                        btn: ["知道了"],
+                    });
+                }
+            };
+
+            WatcherPage.init();
+        ';
+
+        return $this->renderPage('插件监视器安装管理器 - FastAdmin 工具箱', $content, $scripts, '', true);
+    }
+
+    /**
+     * 通过 file_get_contents 下载文件，失败回退 cURL
+     */
+    private function downloadFile($url)
+    {
+        // 尝试 file_get_contents（跟随重定向）
+        $ctx = stream_context_create([
+            'http' => [
+                'timeout'    => 30,
+                'user_agent' => 'Mozilla/5.0 (compatible; FastAdmin-Toolbox)',
+                'follow_location' => 1,
+                'max_redirects'   => 5,
+            ],
+        ]);
+        $content = @file_get_contents($url, false, $ctx);
+        if ($content !== false && strlen($content) > 0) {
+            return $content;
+        }
+
+        // 回退 cURL
+        if (function_exists('curl_init')) {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 5,
+                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; FastAdmin-Toolbox)',
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            $content = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200 && strlen($content) > 0) {
+                return $content;
+            }
+        }
+
+        return false;
+    }
     /**
      * PHP 环境信息
      */
