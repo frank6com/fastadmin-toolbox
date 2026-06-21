@@ -30,13 +30,13 @@
 curl -o application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin-toolbox/master/Toolbox.php
 
 # 使用 curl 下载 gitee 源
-curl -o application/admin/controller/Toolbox.php https://gitee.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php
+curl -o application/admin/controller/Toolbox.php https://raw.giteeusercontent.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php
 
 # 使用 wget 下载 github 源
 wget -O application/admin/controller/Toolbox.php https://raw.githubusercontent.com/frank6com/fastadmin-toolbox/master/Toolbox.php
 
 # 使用 wget 下载 gitee 源
-wget -O application/admin/controller/Toolbox.php https://gitee.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php
+wget -O application/admin/controller/Toolbox.php https://raw.giteeusercontent.com/frank6com/fastadmin-toolbox/raw/master/Toolbox.php
 ```
 
 ### 访问页面
