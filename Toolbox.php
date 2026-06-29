@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.8.0';
+    protected $version = '1.8.2';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -1945,8 +1945,8 @@ class Toolbox extends Backend
     /**
      * 插件监视器安装管理器
      *
-     * GET:  检测三个 JS 文件 + package.json dev 脚本的安装状态
-     * POST: 接收 item 参数逐项安装
+     * GET:  检测三个 JS 文件 + package.json addon:watch 脚本的安装状态
+     * POST: 接收 item 参数逐项安装/卸载
      */
     public function addonWatcher()
     {
@@ -1958,10 +1958,35 @@ class Toolbox extends Backend
             'config' => ['url' => 'https://gitee.com/frank6com/FastAdmin-Plugin-Dev-Watch/raw/master/plugin-dev.config.js', 'path' => $rootPath . 'plugin-dev.config.js', 'name' => 'plugin-dev.config.js', 'desc' => '监听配置文件'],
         ];
 
-        // ==================== POST: 逐项安装 ====================
+        $scriptKey  = 'addon:watch';
+        $scriptVal  = 'node plugin-dev-watch.js';
+        $pkgFile    = $rootPath . 'package.json';
+
+        // ==================== POST ====================
         if ($this->request->isPost()) {
             Config::set('default_return_type', 'json');
             $item = $this->request->post('item', '');
+
+            // ---- 卸载全部 ----
+            if ($item === 'uninstall') {
+                $errors = [];
+                foreach ($files as $f) {
+                    if (is_file($f['path']) && !@unlink($f['path'])) {
+                        $errors[] = '删除失败: ' . $f['name'];
+                    }
+                }
+                if (is_file($pkgFile) && is_writable($pkgFile)) {
+                    $pkg = json_decode(file_get_contents($pkgFile), true);
+                    if (isset($pkg['scripts'][$scriptKey]) && $pkg['scripts'][$scriptKey] === $scriptVal) {
+                        unset($pkg['scripts'][$scriptKey]);
+                        @file_put_contents($pkgFile, json_encode($pkg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n");
+                    }
+                }
+                if ($errors) {
+                    $this->error('部分卸载失败: ' . implode('; ', $errors));
+                }
+                $this->success('已全部卸载，页面即将刷新');
+            }
 
             if (!in_array($item, ['watch', 'sync', 'config', 'devcmd'], true)) {
                 $this->error('无效的安装项: ' . $item);
@@ -1969,81 +1994,41 @@ class Toolbox extends Backend
 
             // ---- 安装 JS 文件 ----
             if (isset($files[$item])) {
-                $targetFile = $files[$item]['path'];
-
-                // 检查目录可写
                 if (!is_writable($rootPath)) {
                     $this->error('项目根目录不可写，请检查权限: ' . $rootPath);
                 }
-
-                // 下载文件
                 $content = $this->downloadFile($files[$item]['url']);
                 if ($content === false) {
-                    $this->error('下载失败，请检查网络连接: ' . $files[$item]['url']);
+                    $this->error('下载失败: ' . $files[$item]['url']);
                 }
-
-                // 写入文件
-                $result = @file_put_contents($targetFile, $content);
-                if ($result === false) {
-                    $this->error('写入文件失败: ' . $files[$item]['name']);
+                if (@file_put_contents($files[$item]['path'], $content) === false) {
+                    $this->error('写入失败: ' . $files[$item]['name']);
                 }
-
-                $this->success($files[$item]['name'] . ' 安装成功', '', [
-                    'file' => $files[$item]['name'],
-                ]);
+                $this->success($files[$item]['name'] . ' 安装成功', '', ['file' => $files[$item]['name']]);
             }
 
             // ---- 安装 devcmd ----
             if ($item === 'devcmd') {
-                $pkgFile = $rootPath . 'package.json';
-
-                if (!is_file($pkgFile)) {
-                    $this->error('package.json 文件不存在');
-                }
-                if (!is_writable($pkgFile)) {
-                    $this->error('package.json 不可写，请检查权限');
-                }
-
+                if (!is_file($pkgFile)) $this->error('package.json 不存在');
+                if (!is_writable($pkgFile)) $this->error('package.json 不可写');
                 $pkg = json_decode(file_get_contents($pkgFile), true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $this->error('package.json 解析失败: ' . json_last_error_msg());
                 }
-
-                $targetScript = 'node plugin-dev-watch.js';
-
-                // 检查冲突
-                if (isset($pkg['scripts']['dev'])) {
-                    $current = $pkg['scripts']['dev'];
-                    if ($current === $targetScript) {
-                        $this->success('dev 命令已正确配置');
-                    }
-                    // 冲突：返回冲突信息
-                    $this->success('dev 命令已存在但值不匹配', '', [
-                        'conflict'     => true,
-                        'currentValue' => $current,
-                        'expectedValue' => $targetScript,
+                if (isset($pkg['scripts'][$scriptKey])) {
+                    $cur = $pkg['scripts'][$scriptKey];
+                    if ($cur === $scriptVal) $this->success($scriptKey . ' 已正确配置');
+                    $this->success($scriptKey . ' 已存在但值不匹配', '', [
+                        'conflict' => true, 'currentValue' => $cur, 'expectedValue' => $scriptVal,
                     ]);
                 }
-
-                // 无冲突，写入
-                if (!isset($pkg['scripts'])) {
-                    $pkg['scripts'] = [];
-                }
-                $pkg['scripts']['dev'] = $targetScript;
-
-                $written = @file_put_contents(
-                    $pkgFile,
-                    json_encode($pkg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n"
-                );
-                if ($written === false) {
+                if (!isset($pkg['scripts'])) $pkg['scripts'] = [];
+                $pkg['scripts'][$scriptKey] = $scriptVal;
+                if (@file_put_contents($pkgFile, json_encode($pkg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n") === false) {
                     $this->error('写入 package.json 失败');
                 }
-
-                $this->success('dev 命令配置成功', '', [
-                    'conflict' => false,
-                ]);
+                $this->success($scriptKey . ' 配置成功', '', ['conflict' => false]);
             }
-
             $this->error('未知安装项');
         }
 
@@ -2061,15 +2046,14 @@ class Toolbox extends Backend
             ];
         }
 
-        // 检测 package.json dev 命令
+        // 检测 package.json addon:watch 命令
         $devConflict = null;
         $devInstalled = false;
-        $pkgFile = $rootPath . 'package.json';
         if (is_file($pkgFile)) {
             $pkg = json_decode(file_get_contents($pkgFile), true);
-            if (isset($pkg['scripts']['dev'])) {
-                $current = $pkg['scripts']['dev'];
-                if ($current === 'node plugin-dev-watch.js') {
+            if (isset($pkg['scripts'][$scriptKey])) {
+                $current = $pkg['scripts'][$scriptKey];
+                if ($current === $scriptVal) {
                     $devInstalled = true;
                 } else {
                     $devConflict = $current;
@@ -2079,8 +2063,8 @@ class Toolbox extends Backend
 
         $checklist[] = [
             'id'        => 'devcmd',
-            'name'      => 'package.json dev 命令',
-            'desc'      => 'npm run dev 快捷命令',
+            'name'      => 'package.json addon:watch 命令',
+            'desc'      => 'npm run addon:watch 快捷命令',
             'installed' => $devInstalled,
             'conflict'  => $devConflict,
         ];
@@ -2138,7 +2122,9 @@ class Toolbox extends Backend
         }
 
         $btnAll = '';
-        if (!$allInstalled) {
+        if ($allInstalled) {
+            $btnAll = '<button class="btn btn-danger" id="btn-watcher-uninstall" style="margin-bottom:16px;"><i class="fa fa-trash"></i> 一键卸载</button>';
+        } else {
             $btnAll = '<button class="btn btn-success" id="btn-watcher-install-all" style="margin-bottom:16px;"><i class="fa fa-download"></i> 一键安装全部</button>';
         }
 
@@ -2155,7 +2141,7 @@ class Toolbox extends Backend
                     </p>
                     <br>
                     <div style="margin-bottom:10px;display:inline-flex;align-items:center;">
-                        <code style="background:#333;color:#fff;padding:6px 12px;border-radius:4px 0 0 4px;font-size:14px;">npm run dev</code>
+                        <code style="background:#333;color:#fff;padding:6px 12px;border-radius:4px 0 0 4px;font-size:14px;">npm run addon:watch</code>
                         <input type="text" id="watcher-plugin-name" value="插件目录名称" style="width:160px;padding:6px 8px;border:1px solid #ccc;border-left:none;border-radius:0 4px 4px 0;font-family:monospace;font-size:14px;" placeholder="插件目录名称">
                     </div>
                     <br>
@@ -2283,16 +2269,45 @@ class Toolbox extends Backend
 
                     $("#btn-watcher-copy-cmd").on("click", function() {
                         var name = $("#watcher-plugin-name").val().trim() || "插件目录名称";
-                        self.copyToClipboard("npm run dev " + name);
+                        self.copyToClipboard("npm run addon:watch " + name);
                     });
 
                     $("#btn-copy-npm-install").on("click", function() {
                         self.copyToClipboard("npm install --save-dev chokidar fs-extra");
                     });
 
+                    $("#btn-watcher-uninstall").on("click", function() {
+                        Layer.confirm(
+                            "确定要卸载插件监视器吗？<br><br>将删除以下内容：<br>" +
+                            "• plugin-dev-watch.js<br>" +
+                            "• plugin-dev-sync.js<br>" +
+                            "• plugin-dev.config.js<br>" +
+                            "• package.json 中的 addon:watch 命令<br>" +
+                            "<br><span style=\"color:#d9534f;\">npm 依赖包 (chokidar/fs-extra) 不会被卸载</span>",
+                            { icon: 0, title: "确认卸载", btn: ["取消", "确认卸载"] },
+                            function(index) { Layer.close(index); },
+                            function(index) {
+                                var idx = Layer.load();
+                                $.ajax({
+                                    url: self.installUrl, type: "POST",
+                                    data: { item: "uninstall" }, dataType: "json",
+                                    success: function(res) {
+                                        Layer.close(idx);
+                                        Layer.msg(res.msg || "卸载完成", {icon: 1});
+                                        setTimeout(function() { location.reload(); }, 1000);
+                                    },
+                                    error: function() {
+                                        Layer.close(idx);
+                                        Layer.alert("卸载请求失败", {icon: 2});
+                                    }
+                                });
+                            }
+                        );
+                    });
+
                     if (Config.watcher_has_conflict) {
                         setTimeout(function() {
-                            Layer.msg("检测到 package.json dev 命令冲突，请点击「查看冲突」", {icon: 0, time: 5000});
+                            Layer.msg("检测到 package.json addon:watch 命令冲突，请点击「查看冲突」", {icon: 0, time: 5000});
                         }, 500);
                     }
                 },
@@ -2311,7 +2326,7 @@ class Toolbox extends Backend
                                 if (res.data && res.data.conflict) {
                                     self.showConflictDialog({
                                         id: item,
-                                        name: "package.json dev 命令",
+                                        name: "package.json addon:watch 命令",
                                         conflict: res.data.currentValue,
                                         expectedValue: res.data.expectedValue
                                     });
@@ -2339,7 +2354,7 @@ class Toolbox extends Backend
                     if (index >= items.length) {
                         Layer.msg("全部安装完成！", {icon: 1});
                         if (hasConflict) {
-                            Layer.msg("请单独处理 package.json dev 命令的冲突", {icon: 0, time: 4000});
+                            Layer.msg("请单独处理 package.json addon:watch 命令的冲突", {icon: 0, time: 4000});
                         } else {
                             setTimeout(function() { location.reload(); }, 1000);
                         }
@@ -2375,16 +2390,16 @@ class Toolbox extends Backend
                     var expected = itemData.expectedValue || "node plugin-dev-watch.js";
 
                     var html = "<div style=\"padding:10px;\">";
-                    html += "<p style=\"color:#f0ad4e;font-size:14px;\"><i class=\"fa fa-exclamation-triangle\"></i> <strong>dev 命令冲突</strong></p>";
-                    html += "<p style=\"color:#666;\">package.json 中已存在 <code>scripts.dev</code>，但值与期望不匹配：</p>";
+                    html += "<p style=\"color:#f0ad4e;font-size:14px;\"><i class=\"fa fa-exclamation-triangle\"></i> <strong>addon:watch 命令冲突</strong></p>";
+                    html += "<p style=\"color:#666;\">package.json 中已存在 <code>scripts.addon:watch</code>，但值与期望不匹配：</p>";
                     html += "<table class=\"table table-bordered\" style=\"font-size:12px;\">";
                     html += "<tr><td style=\"width:80px;font-weight:600;\">当前值</td><td><code style=\"color:#d9534f;\">" + self.escapeHtml(current) + "</code></td></tr>";
                     html += "<tr><td style=\"font-weight:600;\">期望值</td><td><code style=\"color:#18bc9c;\">" + self.escapeHtml(expected) + "</code></td></tr>";
                     html += "</table>";
                     html += "<p style=\"color:#888;font-size:12px;margin-top:10px;\">";
                     html += "请手动编辑项目根目录下的 <code>package.json</code> 文件，<br>";
-                    html += "将 <code>scripts</code> 中的 <code>dev</code> 字段修改为以上期望值。<br><br>";
-                    html += "或者将 <code>dev</code> 重命名为其他名称后，重新点击安装。";
+                    html += "将 <code>scripts</code> 中的 <code>addon:watch</code> 字段修改为以上期望值。<br><br>";
+                    html += "或者将 <code>addon:watch</code> 重命名为其他名称后，重新点击安装。";
                     html += "</p></div>";
 
                     Layer.open({
