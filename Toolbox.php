@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.8.2';
+    protected $version = '1.8.4';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -990,6 +990,9 @@ class Toolbox extends Backend
                     case 'install-db':
                         $result = $this->addon_install_db($addonName);
                         break;
+                    case 'install-testdata':
+                        $result = $this->addon_install_testdata($addonName);
+                        break;
                     case 'uninstall-menu':
                         $result = $this->addon_uninstall_menu($addonName);
                         break;
@@ -1077,6 +1080,7 @@ class Toolbox extends Backend
                                     {
                                         field: "operate",
                                         title: "操作",
+                                        width: "440px",
                                         align: "right",
                                         table: table, 
                                         events: Table.api.events.operate,
@@ -1145,6 +1149,25 @@ class Toolbox extends Backend
                                                 },
                                                 error: function (data, ret) {
                                                     Layer.alert(ret.msg || '数据表安装失败', {icon: 2});
+                                                    return false;
+                                                }
+                                            },
+                                            {
+                                                name: "install_testdata",
+                                                text: "导入测试数据",
+                                                title: "导入测试数据",
+                                                classname: "btn btn-xs btn-warning btn-install-testdata btn-ajax",
+                                                icon: "fa fa-file-text-o",
+                                                url: function(row){
+                                                    return 'toolbox/addons?action=install-testdata&name=' + row.name;
+                                                },
+                                                confirm: '此操作将执行插件目录下的 testdata.sql 插入测试数据（INSERT IGNORE），确认继续吗？',
+                                                success: function (data, ret) {
+                                                    Layer.msg(ret.msg || '测试数据导入成功', {icon: 1});
+                                                    return false;
+                                                },
+                                                error: function (data, ret) {
+                                                    Layer.alert(ret.msg || '测试数据导入失败', {icon: 2});
                                                     return false;
                                                 }
                                             },
@@ -3153,6 +3176,26 @@ class Toolbox extends Backend
         }
 
         return true;
+    }
+
+    /**
+     * 插件测试数据导入方法（细颗粒度）
+     * 执行插件目录下的 testdata.sql 文件，自动替换表前缀
+     * @param string $addon_name 插件名称
+     * @return true
+     * @throws \think\Exception
+     */
+    protected function addon_install_testdata($addon_name)
+    {
+        $sqlFile = ADDON_PATH . $addon_name . DS . 'testdata.sql';
+        if (!is_file($sqlFile)) {
+            throw new \think\Exception('该插件没有 testdata.sql 文件');
+        }
+        $sql = file_get_contents($sqlFile);
+        if (empty(trim($sql))) {
+            throw new \think\Exception('testdata.sql 文件内容为空');
+        }
+        return $this->addon_install_db($addon_name, $sql);
     }
 
     /**
