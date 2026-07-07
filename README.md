@@ -18,6 +18,7 @@
 | **本地插件管理器** | 显示本地插件列表，支持安装/卸载菜单、导入数据等二次开发操作 |
 | **菜单代码管理器** | 支持菜单配置与代码的双向导入导出，快速创建或备份菜单配置 |
 | **插件开发监听器安装器** | 检测并安装插件开发文件同步监视工具，安装后可通过命令行执行生产目录和插件目录的文件监听同步功能 |
+| **语言包编辑器** | 可以方便的加载语言文件并对其进行翻译（基于腾讯翻译实现），支持导出语言文件代码 |
 
 ## 使用说明
 
@@ -62,8 +63,8 @@ wget -O application/admin/controller/Toolbox.php https://raw.giteeusercontent.co
 | *系统环境信息* | *系统环境信息 - 检查更新* |
 | ![菜单代码管理器](assets/images/preview_rules.png) | ![本地插件管理器](assets/images/preview_addons.png) |
 | *菜单代码管理器* | *本地插件管理器* |
-| ![插件开发监听器](assets/images/preview_addon_watcher.png) |  |
-| *插件开发监听器* |   |
+| ![插件开发监听器](assets/images/preview_addon_watcher.png) | ![语言包编辑器](assets/images/preview_langtool.png) |
+| *插件开发监听器* | *语言包编辑器* |
 
 ## 交流 QQ 群
 

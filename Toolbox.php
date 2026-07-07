@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.8.4';
+    protected $version = '1.9.23';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -248,6 +248,14 @@ class Toolbox extends Backend
                     'color'  => '#8e44ad',
                 ],
                 [
+                    'icon'   => 'fa-language',
+                    'title'  => '语言包编辑器',
+                    'desc'   => '在线编辑多语言包文件，支持导入导出与对比。',
+                    'url'    => url('langtool'),
+                    'status' => 'ready',
+                    'color'  => '#18bc9c',
+                ],
+                [
                     'icon'   => 'fa-magic',
                     'title'  => '初始化工具',
                     'desc'   => '引导完成基础配置，方便快速上手开发或部署。',
@@ -286,14 +294,6 @@ class Toolbox extends Backend
                     'url'    => '',
                     'status' => 'wip',
                     'color'  => '#e74c3c',
-                ],
-                [
-                    'icon'   => 'fa-language',
-                    'title'  => '语言包编辑器',
-                    'desc'   => '在线编辑多语言包文件，支持导入导出与对比。',
-                    'url'    => '',
-                    'status' => 'wip',
-                    'color'  => '#8e44ad',
                 ],
                 [
                     'icon'   => 'fa-upload',
@@ -2675,6 +2675,894 @@ class Toolbox extends Backend
                 'new_versions'    => $newVersions,
             ]);
         }
+    }
+
+
+    /**
+     * 语言包编辑器
+     */
+    public function langtool()
+    {
+        $this->assignconfig([
+            'langtool_list_url' => url('getLangList'),
+            'langtool_load_url' => url('loadLangFile'),
+        ]);
+
+        $content = <<<'HTML'
+            <style>
+            /* 仅保留 Bootstrap 没有的必要样式 */
+            .lt-filebar .breadcrumb { margin-bottom:0; padding:0; background:none; }
+            .lt-filebar .lt-file-stats { flex-shrink:0; font-size:12px; color:#999; }
+            .lt-toolbar.disabled { opacity:0.4; pointer-events:none; }
+            .lt-table-wrap { overflow-x:auto; display:none; }
+            .lt-table td { vertical-align:top; }
+            .lt-table td.lt-col-cb { width:34px; text-align:center; vertical-align:middle; }
+            .lt-table td.lt-col-res { width:90px; text-align:center; vertical-align:middle; }
+            .lt-table td.lt-col-act { width:50px; text-align:center; vertical-align:middle; }
+            .lt-table th.lt-col-act { width:50px; text-align:center; }
+            .lt-table .lt-key-text { font-size:13px; font-weight:500; color:#555; word-break:break-all; line-height:34px; }
+            .lt-table textarea.form-control { min-height:32px; resize:vertical; margin-bottom:0; }
+            .lt-table tr.row-selected { background:#f0faf7; }
+            .lt-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:500; white-space:nowrap; }
+            .lt-badge-pending  { background:#fff3e0; color:#e67e22; }
+            .lt-badge-ready    { background:#e6f7e6; color:#1a7d1a; }
+            .lt-badge-error    { background:#fde8ea; color:#c9353f; }
+            .lt-badge-detect   { background:#e8f0fe; color:#0052d9; }
+            .lt-spinner { display:inline-block; width:12px; height:12px; border:2px solid #e8ecf1; border-top-color:#18bc9c; border-radius:50%; animation:lt-spin .6s linear infinite; vertical-align:middle; }
+            @keyframes lt-spin { to { transform:rotate(360deg); } }
+            .lt-empty { display:none; text-align:center; padding:60px 20px; color:#ccc; }
+            .lt-empty .fa { font-size:48px; margin-bottom:12px; }
+            .lt-empty p { font-size:14px; }
+
+            /* 文件选择器 */
+            .lt-fp-row { display:flex; gap:16px; }
+            .lt-fp-col { flex:1; border:1px solid #e8ecf1; border-radius:6px; overflow:hidden; }
+            .lt-fp-col-title { padding:8px 14px; font-size:12px; font-weight:600; color:#888; background:#fafbfc; border-bottom:1px solid #eee; }
+            .lt-fp-list { max-height:320px; overflow-y:auto; }
+            .lt-fp-item, .lt-fp-child-item, .lt-fp-child-toggle { display:block; padding:9px 14px; font-size:13px; color:#555; cursor:pointer; border-bottom:1px solid #f4f6f8; text-decoration:none; transition:background 0.15s; }
+            .lt-fp-item:hover, .lt-fp-child-item:hover, .lt-fp-child-toggle:hover { background:#f8fdfa; }
+            .lt-fp-item.active, .lt-fp-child-item.active { background:#e8f8f3; color:#18bc9c; font-weight:600; }
+            .lt-fp-child-item { padding-left:28px; font-size:12px; }
+            .lt-fp-child-toggle { padding:9px 14px; font-size:12px; color:#aaa; user-select:none; }
+            .lt-fp-child-toggle:hover { color:#18bc9c; }
+            .lt-fp-child-toggle .fa { margin-right:4px; transition:transform 0.2s; }
+            .lt-fp-child-toggle.open .fa { transform:rotate(90deg); }
+            .lt-fp-child-group { display:none; }
+
+            @media (max-width:768px) {
+                .lt-fp-row { flex-direction:column; }
+                .lt-table-wrap { overflow-x:auto; }
+            }
+            </style>
+
+            <div class="tb-hero">
+                <h2><i class="fa fa-language" style="color:#18bc9c;"></i> 语言包编辑器</h2>
+                <p class="tb-hero-sub">加载语言文件 → 手动编辑或自动翻译 → 生成 PHP 代码（基于腾讯翻译 API）</p>
+            </div>
+
+            <!-- 文件加载区 -->
+            <div class="panel panel-default lt-filebar" style="display:flex;align-items:center;gap:12px;padding:14px 18px;margin-bottom:15px;">
+                <button class="btn btn-info" id="btn-load-file">
+                    <i class="fa fa-folder-open"></i> 加载语言文件
+                </button>
+                <ol class="breadcrumb" id="lt-breadcrumb" style="flex:1;min-width:0;">
+                    <li class="active">尚未加载文件 — 请点击左侧按钮选择语言文件</li>
+                </ol>
+                <span class="lt-file-stats" id="lt-file-stats"></span>
+            </div>
+
+            <!-- 翻译工具栏 -->
+            <div class="panel panel-default lt-toolbar disabled" id="lt-toolbar" style="display:flex;align-items:flex-end;gap:12px;padding:14px 18px;margin-bottom:15px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="control-label" style="font-size:11px;font-weight:600;color:#999;">源语言</label>
+                    <select class="form-control" id="lt-src-lang" style="min-width:140px;"><option value="">自动检测</option></select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="control-label" style="font-size:11px;font-weight:600;color:#999;">目标语言</label>
+                    <select class="form-control" id="lt-tgt-lang" style="min-width:140px;"><option value="">-- 请选择 --</option></select>
+                </div>
+                <button class="btn btn-success" id="btn-translate-selected" disabled>
+                    <i class="fa fa-language"></i> 翻译选中项
+                </button>
+                <div style="margin-left:auto;display:flex;gap:8px;">
+                    <button class="btn btn-info btn-sm" id="btn-add-row"><i class="fa fa-plus"></i> 添加行</button>
+                    <button class="btn btn-success" id="btn-generate"><i class="fa fa-code"></i> 生成语言文件代码</button>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div class="lt-empty" id="lt-empty">
+                <i class="fa fa-file-text-o"></i>
+                <p>请先加载语言文件</p>
+            </div>
+
+            <!-- 工作区表格 -->
+            <div class="lt-table-wrap" id="lt-table-wrap">
+                <div class="panel panel-default" style="margin-bottom:0;">
+                <table class="table table-bordered table-hover lt-table" style="margin-bottom:0;">
+                    <thead>
+                        <tr>
+                            <th class="lt-col-cb"><input type="checkbox" id="cb-select-all"></th>
+                            <th>键名</th>
+                            <th>原文</th>
+                            <th>目标翻译</th>
+                            <th class="lt-col-res">结果</th>
+                            <th class="lt-col-act">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lt-tbody"></tbody>
+                </table>
+                </div>
+            </div>
+        HTML;
+
+        $scripts = '
+            var LangTool = {
+                listUrl: Config.langtool_list_url,
+                loadUrl: Config.langtool_load_url,
+
+                apiUrl: "https://transmart.qq.com/api/imt",
+                clientKey: ("tencent_transmart_crx_" + btoa(navigator.userAgent)).slice(0, 100),
+
+                langList: [],
+                sourceLangMap: new Map(),
+                targetLangMap: new Map(),
+
+                rows: [],
+                nextId: 1,
+                currentFile: null,
+
+                init: function() {
+                    var self = this;
+                    self.$tbody = $("#lt-tbody");
+                    self.$tableWrap = $("#lt-table-wrap");
+                    self.$empty = $("#lt-empty");
+                    self.$toolbar = $("#lt-toolbar");
+
+                    self.$empty.show();
+
+                    $("#btn-load-file").on("click", function() { self.openFilePicker(); });
+                    $("#cb-select-all").on("change", function() { self.toggleAll(this.checked); });
+                    $("#btn-translate-selected").on("click", function() { self.translateSelected(); });
+                    $("#lt-tgt-lang").on("change", function() {
+                        $("#btn-translate-selected").prop("disabled", !this.value);
+                    });
+                    $("#btn-add-row").on("click", function() { self.addRow(); });
+                    $("#btn-generate").on("click", function() { self.generateCode(); });
+
+                    self.loadLangList();
+                },
+
+                showStatus: function(type, msg, timeout) {
+                    Layer.msg(msg, {icon: type === "error" ? 2 : (type === "success" ? 1 : 0), time: timeout || 3000});
+                },
+
+                loadLangList: function() {
+                    var self = this;
+                    Layer.msg("正在加载翻译语言列表...", {icon: 16, time: 0});
+                    fetch(self.apiUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ header: { fn: "support_lang", client_key: self.clientKey } })
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.header && data.header.ret_code === "succ" && data.full_lang_pair && data.full_lang_pair.length) {
+                            self.langList = data.full_lang_pair;
+                        } else {
+                            throw new Error("bad ret_code");
+                        }
+                    })
+                    .catch(function(e) {
+                        console.warn("语言列表 API 失败，使用内置回退列表:", e);
+                        self.fallbackLangList();
+                    })
+                    .then(function() {
+                        self.buildLangMaps();
+                        self.renderLangSelectors();
+                        Layer.closeAll();
+                    });
+                },
+
+                fallbackLangList: function() {
+                    this.langList = [
+                        { source:{code:"en",eng_name:"english",chn_name:"英语",space:true,preferable:true}, target_list:[{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}},{code:"ja",chn_name:"日语",support:{auto_translation_block:true}},{code:"ko",chn_name:"韩语",support:{auto_translation_block:true}},{code:"fr",chn_name:"法语",support:{auto_translation_block:true}},{code:"de",chn_name:"德语",support:{auto_translation_block:true}},{code:"es",chn_name:"西班牙语",support:{auto_translation_block:true}},{code:"ru",chn_name:"俄语",support:{auto_translation_block:true}},{code:"pt",chn_name:"葡萄牙语",support:{auto_translation_block:true}},{code:"it",chn_name:"意大利语",support:{auto_translation_block:true}},{code:"ar",chn_name:"阿拉伯语",support:{auto_translation_block:true}},{code:"th",chn_name:"泰语",support:{auto_translation_block:true}},{code:"tr",chn_name:"土耳其语",support:{auto_translation_block:true}},{code:"vi",chn_name:"越南语",support:{auto_translation_block:true}}]},
+                        { source:{code:"zh",eng_name:"chinese",chn_name:"中文",space:false,preferable:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"ja",chn_name:"日语",support:{auto_translation_block:true}},{code:"ko",chn_name:"韩语",support:{auto_translation_block:true}},{code:"fr",chn_name:"法语",support:{auto_translation_block:true}},{code:"de",chn_name:"德语",support:{auto_translation_block:true}},{code:"es",chn_name:"西班牙语",support:{auto_translation_block:true}},{code:"ru",chn_name:"俄语",support:{auto_translation_block:true}},{code:"pt",chn_name:"葡萄牙语",support:{auto_translation_block:true}},{code:"it",chn_name:"意大利语",support:{auto_translation_block:true}},{code:"ar",chn_name:"阿拉伯语",support:{auto_translation_block:true}},{code:"th",chn_name:"泰语",support:{auto_translation_block:true}},{code:"tr",chn_name:"土耳其语",support:{auto_translation_block:true}},{code:"vi",chn_name:"越南语",support:{auto_translation_block:true}}]},
+                        { source:{code:"ja",eng_name:"japanese",chn_name:"日语",space:false}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"ko",eng_name:"korean",chn_name:"韩语",space:false}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"fr",eng_name:"french",chn_name:"法语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"de",eng_name:"german",chn_name:"德语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"es",eng_name:"spanish",chn_name:"西班牙语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"ru",eng_name:"russian",chn_name:"俄语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"pt",eng_name:"portuguese",chn_name:"葡萄牙语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"it",eng_name:"italian",chn_name:"意大利语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"ar",eng_name:"arabic",chn_name:"阿拉伯语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"th",eng_name:"thai",chn_name:"泰语",space:false}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"tr",eng_name:"turkish",chn_name:"土耳其语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                        { source:{code:"vi",eng_name:"vietnamese",chn_name:"越南语",space:true}, target_list:[{code:"en",chn_name:"英语",preferable:true,support:{auto_translation_block:true}},{code:"zh",chn_name:"中文",preferable:true,support:{auto_translation_block:true}}]},
+                    ];
+                },
+
+                buildLangMaps: function() {
+                    this.sourceLangMap.clear();
+                    this.targetLangMap.clear();
+                    for (var i = 0; i < this.langList.length; i++) {
+                        var p = this.langList[i];
+                        if (p.source) this.sourceLangMap.set(p.source.code, p.source);
+                        var tl = p.target_list || [];
+                        for (var j = 0; j < tl.length; j++) {
+                            if (!this.targetLangMap.has(tl[j].code)) this.targetLangMap.set(tl[j].code, tl[j]);
+                        }
+                    }
+                },
+
+                renderLangSelectors: function() {
+                    var $src = $("#lt-src-lang");
+                    var $tgt = $("#lt-tgt-lang");
+                    $src.html("<option value=\"\">自动检测</option>");
+                    var srcArr = Array.from(this.sourceLangMap.values());
+                    srcArr.sort(function(a,b){ return (b.preferable|0) - (a.preferable|0); });
+                    srcArr.forEach(function(s) {
+                        $src.append("<option value=\"" + s.code + "\">" + (s.chn_name||s.eng_name) + " (" + s.code + ")</option>");
+                    });
+                    $tgt.html("<option value=\"\">-- 请选择目标语言 --</option>");
+                    var tgtArr = Array.from(this.targetLangMap.entries()).map(function(e){ return Object.assign({code:e[0]}, e[1]); });
+                    tgtArr = tgtArr.filter(function(t){ return t.support && t.support.auto_translation_block === true; });
+                    tgtArr.sort(function(a,b){ return (b.preferable|0) - (a.preferable|0); });
+                    tgtArr.forEach(function(t) {
+                        $tgt.append("<option value=\"" + t.code + "\">" + (t.chn_name||t.eng_name) + " (" + t.code + ")</option>");
+                    });
+                    if (this.targetLangMap.has("zh")) $tgt.val("zh");
+                    $("#btn-translate-selected").prop("disabled", !$tgt.val());
+                },
+
+                // ---------- 文件选择器 ----------
+                openFilePicker: function() {
+                    var self = this;
+                    var idx = Layer.load(1, {shade: [0.3, "#000"]});
+                    $.ajax({
+                        url: self.listUrl, type: "POST", dataType: "json",
+                        success: function(res) {
+                            Layer.close(idx);
+                            if (res.code !== 1) { Layer.msg(res.msg || "获取文件列表失败", {icon:2}); return; }
+                            self.showFilePickerModal(res.data || {});
+                        },
+                        error: function() { Layer.close(idx); Layer.msg("获取文件列表失败", {icon:2}); }
+                    });
+                },
+
+                showFilePickerModal: function(tree) {
+                    var self = this;
+                    var appNames = Object.keys(tree).sort();
+                    var appListHtml = "";
+                    appNames.forEach(function(app, i) {
+                        appListHtml += "<a href=\"javascript:;\" class=\"lt-fp-item" + (i===0?" active":"") + "\" data-app=\"" + self.escAttr(app) + "\"><i class=\"fa fa-folder\"></i> " + self.escHtml(app) + "</a>";
+                    });
+
+                    var selectedApp = appNames.length > 0 ? appNames[0] : "";
+                    var selectedPath = "";
+                    var firstLangCodes = selectedApp ? Object.keys(tree[selectedApp] || {}).sort() : [];
+
+                    function renderFilesForLang(appName, langCode) {
+                        var appData = tree[appName] || {};
+                        var langData = appData[langCode];
+                        if (!langData) return "";
+                        return self.buildFileTreeHtml(langData, langCode);
+                    }
+
+                    function renderLangList(appName) {
+                        var appData = tree[appName] || {};
+                        var codes = Object.keys(appData).sort();
+                        var html = "";
+                        codes.forEach(function(lc, i) {
+                            html += "<a href=\"javascript:;\" class=\"lt-fp-item" + (i===0?" active":"") + "\" data-lang=\"" + self.escAttr(lc) + "\"><i class=\"fa fa-globe\"></i> " + self.escHtml(lc) + "</a>";
+                        });
+                        return html;
+                    }
+
+                    var contentHtml =
+                        "<div class=\"lt-file-picker\" style=\"padding:4px 0;\">" +
+                        "<div class=\"lt-fp-row\">" +
+                        "<div class=\"lt-fp-col\" style=\"flex:0 0 140px;\">" +
+                        "<div class=\"lt-fp-col-title\">应用</div>" +
+                        "<div class=\"lt-fp-list\" id=\"lt-fp-apps\">" + appListHtml + "</div>" +
+                        "</div>" +
+                        "<div class=\"lt-fp-col\" style=\"flex:0 0 140px;\">" +
+                        "<div class=\"lt-fp-col-title\">语言</div>" +
+                        "<div class=\"lt-fp-list\" id=\"lt-fp-langs\">" + (firstLangCodes.length>0 ? renderLangList(selectedApp) : "") + "</div>" +
+                        "</div>" +
+                        "<div class=\"lt-fp-col\" style=\"flex:1;\">" +
+                        "<div class=\"lt-fp-col-title\">文件</div>" +
+                        "<div class=\"lt-fp-list\" id=\"lt-fp-files\">" + (firstLangCodes.length>0 ? renderFilesForLang(selectedApp, firstLangCodes[0]) : "<div style=\"padding:20px;color:#ccc;text-align:center;\">无文件</div>") + "</div>" +
+                        "</div>" +
+                        "</div></div>";
+
+                    var selectedLang = firstLangCodes.length > 0 ? firstLangCodes[0] : "";
+
+                    Layer.open({
+                        type: 1,
+                        title: "选择语言文件",
+                        area: ["780px", "450px"],
+                        content: contentHtml,
+                        btn: ["加载", "取消"],
+                        yes: function(layerIndex) {
+                            if (!selectedPath) { Layer.msg("请选择要加载的文件", {icon:0}); return; }
+                            Layer.close(layerIndex);
+                            self.loadFile(selectedApp, selectedPath);
+                        },
+                        success: function(layero) {
+                            $(layero).find("#lt-fp-apps").on("click", ".lt-fp-item", function() {
+                                var app = $(this).data("app");
+                                selectedApp = app; selectedPath = "";
+                                $(this).addClass("active").siblings().removeClass("active");
+                                var appData = tree[app] || {};
+                                var codes = Object.keys(appData).sort();
+                                var lHtml = "";
+                                codes.forEach(function(lc, i) {
+                                    lHtml += "<a href=\"javascript:;\" class=\"lt-fp-item" + (i===0?" active":"") + "\" data-lang=\"" + self.escAttr(lc) + "\"><i class=\"fa fa-globe\"></i> " + self.escHtml(lc) + "</a>";
+                                });
+                                $(layero).find("#lt-fp-langs").html(lHtml);
+                                selectedLang = codes.length > 0 ? codes[0] : "";
+                                $(layero).find("#lt-fp-files").html(codes.length>0 ? renderFilesForLang(app, codes[0]) : "<div style=\"padding:20px;color:#ccc;text-align:center;\">无文件</div>");
+                            });
+
+                            $(layero).find("#lt-fp-langs").on("click", ".lt-fp-item", function() {
+                                var lang = $(this).data("lang");
+                                selectedLang = lang; selectedPath = "";
+                                $(this).addClass("active").siblings().removeClass("active");
+                                $(layero).find("#lt-fp-files").html(renderFilesForLang(selectedApp, lang));
+                            });
+
+                            $(layero).on("click", ".lt-fp-file-item", function() {
+                                var path = $(this).data("path");
+                                selectedPath = path;
+                                $(this).addClass("active").siblings().removeClass("active");
+                            });
+
+                            $(layero).on("click", ".lt-fp-child-toggle", function() {
+                                $(this).toggleClass("open").next(".lt-fp-child-group").toggle();
+                            });
+                        }
+                    });
+                },
+
+                buildFileTreeHtml: function(langData, langCode) {
+                    var self = this;
+                    if (!langData) return "<div style=\"padding:20px;color:#ccc;text-align:center;\">无文件</div>";
+
+                    var html = "";
+                    var isFirst = true;
+
+                    // 顶层文件（_topFile）：如 zh-cn.php（路径直接是文件名）
+                    if (langData._topFile) {
+                        html += "<a href=\"javascript:;\" class=\"lt-fp-item lt-fp-file-item active\" data-path=\"" + self.escAttr(langData._topFile) + "\"><i class=\"fa fa-file-code-o\"></i> " + self.escHtml(langData._topFile) + " <small style=\"color:#aaa;\">主文件</small></a>";
+                        isFirst = false;
+                    }
+
+                    // 子目录中的文件（_files）
+                    var files = langData._files || [];
+                    files.forEach(function(f) {
+                        var path = langCode + "/" + f;
+                        var act = isFirst ? " active" : "";
+                        html += "<a href=\"javascript:;\" class=\"lt-fp-item lt-fp-file-item" + act + "\" data-path=\"" + self.escAttr(path) + "\"><i class=\"fa fa-file-code-o\"></i> " + self.escHtml(f) + "</a>";
+                        isFirst = false;
+                    });
+
+                    // 子目录递归
+                    var children = langData._children || {};
+                    Object.keys(children).sort().forEach(function(dirName) {
+                        var childData = children[dirName];
+                        html += "<div class=\"lt-fp-child-toggle\"><i class=\"fa fa-caret-right\"></i> " + self.escHtml(dirName) + "/</div>";
+                        html += "<div class=\"lt-fp-child-group\">";
+                        html += self.buildChildTreeHtml(childData, langCode + "/" + dirName);
+                        html += "</div>";
+                    });
+
+                    if (!html) html = "<div style=\"padding:20px;color:#ccc;text-align:center;\">无 .php 文件</div>";
+                    return html;
+                },
+
+                buildChildTreeHtml: function(data, basePath) {
+                    var self = this;
+                    var html = "";
+                    var files = data._files || [];
+                    files.forEach(function(f) {
+                        var path = basePath + "/" + f;
+                        html += "<a href=\"javascript:;\" class=\"lt-fp-child-item lt-fp-file-item\" data-path=\"" + self.escAttr(path) + "\"><i class=\"fa fa-file-code-o\"></i> " + self.escHtml(f) + "</a>";
+                    });
+                    var children = data._children || {};
+                    Object.keys(children).sort().forEach(function(dirName) {
+                        var childData = children[dirName];
+                        html += "<div class=\"lt-fp-child-toggle\"><i class=\"fa fa-caret-right\"></i> " + self.escHtml(dirName) + "/</div>";
+                        html += "<div class=\"lt-fp-child-group\">";
+                        html += self.buildChildTreeHtml(childData, basePath + "/" + dirName);
+                        html += "</div>";
+                    });
+                    return html;
+                },
+
+                // ---------- 文件加载 ----------
+                loadFile: function(app, path) {
+                    var self = this;
+                    var idx = Layer.load(1, {shade: [0.3, "#000"]});
+                    $.ajax({
+                        url: self.loadUrl, type: "POST", data: { app: app, path: path }, dataType: "json",
+                        success: function(res) {
+                            Layer.close(idx);
+                            if (res.code !== 1) { Layer.alert(res.msg || "加载失败", {icon:2}); return; }
+                            var data = res.data || {};
+                            self.currentFile = data.filePath || (app + "/lang/" + path);
+                            self.rows = [];
+                            self.nextId = 1;
+                            var keys = data.keys || [];
+                            for (var i = 0; i < keys.length; i++) {
+                                self.rows.push({
+                                    id: self.nextId++, key: keys[i].key, source: keys[i].source,
+                                    target: "", result: "pending", checked: false
+                                });
+                            }
+                            $("#lt-breadcrumb").html("<li class=\"active\"><i class=\"fa fa-file-text-o\"></i> application/" + self.escHtml(self.currentFile) + "</li>");
+                            $("#lt-file-stats").text("共 " + self.rows.length + " 条");
+                            self.$empty.hide();
+                            self.$tableWrap.show();
+                            self.$toolbar.removeClass("disabled");
+                            self.renderTable();
+                            self.updateStats();
+                            Layer.msg("已加载: " + self.currentFile + "（" + self.rows.length + " 条）", {icon:1, time:2000});
+                        },
+                        error: function() { Layer.close(idx); Layer.alert("请求失败", {icon:2}); }
+                    });
+                },
+
+                // ---------- 表格 ----------
+                findRow: function(id) {
+                    for (var i = 0; i < this.rows.length; i++) {
+                        if (this.rows[i].id === id) return this.rows[i];
+                    }
+                    return null;
+                },
+
+                renderTable: function() {
+                    var self = this;
+                    var html = "";
+                    for (var i = 0; i < self.rows.length; i++) {
+                        var row = self.rows[i];
+                        var checked = row.checked ? " checked" : "";
+                        var rowClass = row.checked ? " row-selected" : "";
+                        var targetVal = self.escAttr(row.target);
+                        html += "<tr class=\"" + rowClass + "\" data-row-id=\"" + row.id + "\">";
+                        html += "<td class=\"lt-col-cb\"><input type=\"checkbox\" class=\"lt-cb-row\"" + checked + " data-id=\"" + row.id + "\"></td>";
+                        html += "<td><span class=\"lt-key-text\">" + self.escHtml(row.key) + "</span></td>";
+                        html += "<td><textarea class=\"form-control\" readonly>" + self.escHtml(row.source) + "</textarea></td>";
+                        html += "<td><textarea class=\"form-control tgt-edit\" data-id=\"" + row.id + "\" placeholder=\"输入翻译或使用自动翻译...\">" + targetVal + "</textarea></td>";
+                        html += "<td class=\"lt-col-res\">" + self.getResultBadge(row.result) + "</td>";
+                        html += "<td class=\"lt-col-act\"><button class=\"btn btn-xs btn-danger btn-del-row\" data-id=\"" + row.id + "\" title=\"删除此行\"><i class=\"fa fa-trash\"></i></button></td>";
+                        html += "</tr>";
+                    }
+                    self.$tbody.html(html);
+
+                    self.$tbody.find(".lt-cb-row").on("change", function() {
+                        var id = parseInt($(this).data("id"));
+                        var row = self.findRow(id);
+                        if (!row) return;
+                        row.checked = this.checked;
+                        $(this).closest("tr").toggleClass("row-selected", this.checked);
+                        self.updateSelectAll();
+                    });
+
+                    self.$tbody.find(".tgt-edit").on("input", function() {
+                        var id = parseInt($(this).data("id"));
+                        var row = self.findRow(id);
+                        if (!row) return;
+                        row.target = this.value;
+                        if (row.checked) {
+                            row.checked = false;
+                            self.$tbody.find(".lt-cb-row[data-id=\"" + id + "\"]").prop("checked", false);
+                            self.$tbody.find("tr[data-row-id=\"" + id + "\"]").removeClass("row-selected");
+                            self.updateSelectAll();
+                        }
+                    });
+
+                    self.$tbody.find(".btn-del-row").on("click", function() {
+                        var id = parseInt($(this).data("id"));
+                        Layer.confirm("确定删除此行吗？", {icon: 3, title: "删除确认"}, function(index) {
+                            Layer.close(index);
+                            self.deleteRow(id);
+                        });
+                    });
+
+                    self.updateSelectAll();
+                    self.updateStats();
+                },
+
+                deleteRow: function(id) {
+                    var self = this;
+                    for (var i = 0; i < self.rows.length; i++) {
+                        if (self.rows[i].id === id) {
+                            self.rows.splice(i, 1);
+                            break;
+                        }
+                    }
+                    self.renderTable();
+                },
+
+                addRow: function() {
+                    var self = this;
+                    Layer.open({
+                        type: 1,
+                        title: "添加新行",
+                        area: ["500px", "300px"],
+                        content: "<div style=\"padding:20px;\">" +
+                            "<div class=\"form-group\"><label class=\"control-label\">键名 (Key)</label><input type=\"text\" id=\"lt-add-key\" class=\"form-control\" placeholder=\"例如: Hello world\"></div>" +
+                            "<div class=\"form-group\"><label class=\"control-label\">原文 (Source)</label><textarea id=\"lt-add-src\" class=\"form-control\" rows=\"2\" placeholder=\"例如: 你好世界\"></textarea></div>" +
+                            "</div>",
+                        btn: ["确认添加", "取消"],
+                        yes: function(layerIndex) {
+                            var key = $("#lt-add-key").val().trim();
+                            var src = $("#lt-add-src").val().trim();
+                            if (!key) { Layer.msg("请输入键名", {icon:0}); return; }
+                            if (!src) { Layer.msg("请输入原文", {icon:0}); return; }
+                            Layer.close(layerIndex);
+                            self.rows.push({
+                                id: self.nextId++,
+                                key: key,
+                                source: src,
+                                target: "",
+                                result: "pending",
+                                checked: false
+                            });
+                            self.renderTable();
+                            var $lastRow = self.$tbody.find("tr:last");
+                            if ($lastRow.length) $lastRow[0].scrollIntoView({behavior: "smooth", block: "center"});
+                        },
+                        btn2: function(layerIndex) { Layer.close(layerIndex); }
+                    });
+                },
+
+                getResultBadge: function(result) {
+                    switch (result) {
+                        case "pending":  return "<span class=\"lt-badge lt-badge-pending\">待翻译</span>";
+                        case "ready":    return "<span class=\"lt-badge lt-badge-ready\">已翻译</span>";
+                        case "error":    return "<span class=\"lt-badge lt-badge-error\">失败</span>";
+                        case "detect":   return "<span class=\"lt-badge lt-badge-detect\"><span class=\"lt-spinner\"></span> 处理中</span>";
+                        case "translating": return "<span class=\"lt-badge lt-badge-detect\"><span class=\"lt-spinner\"></span> 翻译中</span>";
+                        default: return "<span class=\"lt-badge lt-badge-pending\">待翻译</span>";
+                    }
+                },
+
+                updateResultBadge: function(id, result) {
+                    this.$tbody.find("tr[data-row-id=\"" + id + "\"] .lt-col-res").html(this.getResultBadge(result));
+                },
+
+                toggleAll: function(checked) {
+                    for (var i = 0; i < this.rows.length; i++) {
+                        this.rows[i].checked = checked;
+                    }
+                    this.renderTable();
+                    this.updateStats();
+                },
+
+                updateSelectAll: function() {
+                    var allChecked = this.rows.length > 0 && this.rows.every(function(r) { return r.checked; });
+                    var someChecked = this.rows.some(function(r) { return r.checked; });
+                    $("#cb-select-all").prop("checked", allChecked);
+                    $("#cb-select-all").prop("indeterminate", !allChecked && someChecked);
+                },
+
+                updateStats: function() {
+                    var total = this.rows.length;
+                    var translated = this.rows.filter(function(r) { return r.result === "ready" && r.target; }).length;
+                    $("#lt-file-stats").html("共 <strong style=\"color:#18bc9c;\">" + total + "</strong> 条，已翻译 <strong style=\"color:#18bc9c;\">" + translated + "</strong> 条");
+                },
+
+                // ---------- 翻译 ----------
+                translateSelected: function() {
+                    var self = this;
+                    var selected = self.rows.filter(function(r) { return r.checked; });
+                    if (selected.length === 0) { Layer.msg("请先勾选需要翻译的行", {icon:0}); return; }
+                    var tgtLang = $("#lt-tgt-lang").val();
+                    if (!tgtLang) { Layer.msg("请先选择目标语言", {icon:0}); return; }
+                    var srcLang = $("#lt-src-lang").val();
+                    $("#btn-translate-selected").prop("disabled", true).html("<span class=\"lt-spinner\"></span> 翻译中...");
+                    Layer.msg("正在翻译 " + selected.length + " 条...", {icon:16, time:0});
+
+                    var total = selected.length, done = 0, errors = 0;
+                    function processNext(index) {
+                        if (index >= selected.length) {
+                            Layer.closeAll();
+                            var msg = errors ? "完成 " + done + "/" + total + " 条，" + errors + " 条失败" : "全部翻译完成！共 " + done + " 条";
+                            Layer.msg(msg, {icon: errors?2:1, time:4000});
+                            $("#btn-translate-selected").prop("disabled", false).html("<i class=\"fa fa-language\"></i> 翻译选中项");
+                            $("#btn-translate-selected").prop("disabled", !$("#lt-tgt-lang").val());
+                            self.updateStats();
+                            self.updateSelectAll();
+                            return;
+                        }
+                        var row = selected[index];
+                        self.updateResultBadge(row.id, "translating");
+                        self.translateOne(row, srcLang, tgtLang, function(success, translatedText) {
+                            if (success) {
+                                row.target = translatedText; row.result = "ready";
+                                self.$tbody.find(".tgt-edit[data-id=\"" + row.id + "\"]").val(translatedText);
+                                self.updateResultBadge(row.id, "ready"); done++;
+                            } else {
+                                row.result = "error";
+                                self.updateResultBadge(row.id, "error"); errors++;
+                            }
+                            processNext(index + 1);
+                        });
+                    }
+                    processNext(0);
+                },
+
+                translateOne: function(row, srcLang, tgtLang, callback) {
+                    var self = this;
+                    function doTranslate(sLang) {
+                        fetch(self.apiUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                header: { fn: "auto_translation_block", client_key: self.clientKey },
+                                source: { lang: sLang, text_block: row.source },
+                                target: { lang: tgtLang }
+                            })
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            if (data.header && data.header.ret_code === "succ") callback(true, data.auto_translation || "");
+                            else throw new Error(data.header ? data.header.ret_code : "unknown");
+                        })
+                        .catch(function(e) { console.warn("翻译失败:", row.key, e); callback(false, ""); });
+                    }
+                    if (srcLang) { doTranslate(srcLang); }
+                    else {
+                        self.updateResultBadge(row.id, "detect");
+                        fetch(self.apiUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ header: { fn: "text_analysis", client_key: self.clientKey }, text: row.source })
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) {
+                            doTranslate((data.header && data.header.ret_code === "succ" && data.language) ? data.language : "en");
+                        })
+                        .catch(function() { doTranslate("en"); });
+                    }
+                },
+
+                // ---------- 代码生成 ----------
+                generateCode: function() {
+                    var self = this;
+                    var pairs = [];
+                    for (var i = 0; i < self.rows.length; i++) {
+                        var row = self.rows[i];
+                        pairs.push({ key: row.key, value: row.target || row.source });
+                    }
+                    var code = "<?php\n\nreturn [\n";
+                    var maxKeyLen = 0;
+                    for (var j = 0; j < pairs.length; j++) {
+                        if (pairs[j].key.length > maxKeyLen) maxKeyLen = pairs[j].key.length;
+                    }
+                    for (var k = 0; k < pairs.length; k++) {
+                        var p = pairs[k];
+                        var keyStr = self.phpQuote(p.key);
+                        var valStr = self.phpQuote(p.value);
+                        var padding = " ".repeat(Math.max(1, maxKeyLen - p.key.length + 1));
+                        code += "    " + keyStr + " " + padding + "=> " + valStr + ",\n";
+                    }
+                    code += "];\n";
+                    var fileHint = self.currentFile || "unknown.php";
+                    Layer.open({
+                        type: 1,
+                        title: "生成代码 — " + self.escHtml(fileHint),
+                        area: ["820px", "520px"],
+                        content: "<div style=\"padding:10px;\"><pre style=\"max-height:380px;overflow:auto;background:#2d2d2d;color:#f8f8f2;padding:16px;border-radius:4px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;\"><code>" + self.escHtml(code) + "</code></pre></div>",
+                        btn: ["复制代码", "关闭"],
+                        yes: function(layerIndex) {
+                            if (navigator.clipboard) {
+                                navigator.clipboard.writeText(code).then(function() { Layer.msg("已复制到剪贴板", {icon:1}); }, function() { Layer.msg("复制失败，请手动复制", {icon:0}); });
+                            } else { Layer.msg("请手动选择复制代码", {icon:0}); }
+                        },
+                        btn2: function(layerIndex) { Layer.close(layerIndex); }
+                    });
+                },
+
+                escHtml: function(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); },
+                escAttr: function(s) { return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); },
+                phpQuote: function(s) { return "\'" + String(s).replace(/\\\\/g,"\\\\\\\\").replace(/\'/g,"\\\\\'") + "\'"; }
+            };
+            LangTool.init();
+        ';
+
+        return $this->renderPage('语言包编辑器 - FastAdmin 开发工具箱', $content, $scripts, '', true);
+    }
+
+    /**
+     * 获取本地语言列表，获取application下的所有语言文件列表，按目录结构返回
+     */
+    public function getLangList()
+    {
+        $this->request->filter(['strip_tags', 'trim']);
+        if (!$this->request->isAjax()) {
+            $this->error(__('请求无效'));
+        }
+
+        $appPath = ROOT_PATH . 'application' . DS;
+        if (!is_dir($appPath)) {
+            $this->error('application 目录不存在');
+        }
+
+        $tree = [];
+        $appDirs = glob($appPath . '*', GLOB_ONLYDIR);
+        foreach ($appDirs as $appDir) {
+            $appName = basename($appDir);
+            $langDir = $appDir . DS . 'lang';
+            if (!is_dir($langDir)) {
+                continue;
+            }
+            $langTree = $this->scanLangDir($langDir);
+            if (!empty($langTree)) {
+                $tree[$appName] = $langTree;
+            }
+        }
+
+        if (empty($tree)) {
+            $this->success('未找到语言文件', null, []);
+        }
+
+        $this->success('', null, $tree);
+    }
+
+    /**
+     * 递归扫描 lang 目录
+     * @param string $dir lang 目录路径
+     * @return array
+     */
+    private function scanLangDir($dir)
+    {
+        $result = [];
+        $langCodes = [];
+        $items = scandir($dir);
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $fullPath = $dir . DS . $item;
+            if (is_dir($fullPath)) {
+                $langCodes[$item] = true;
+            } elseif (is_file($fullPath) && pathinfo($item, PATHINFO_EXTENSION) === 'php') {
+                $code = pathinfo($item, PATHINFO_FILENAME);
+                $langCodes[$code] = true;
+            }
+        }
+
+        foreach ($langCodes as $code => $_) {
+            $entry = ['_files' => [], '_children' => []];
+
+            // 顶层 .php 文件：lang/zh-cn.php
+            $topFile = $dir . DS . $code . '.php';
+            if (is_file($topFile)) {
+                $entry['_topFile'] = $code . '.php';
+            }
+
+            // 子目录：lang/zh-cn/
+            $subDir = $dir . DS . $code;
+            if (is_dir($subDir)) {
+                $subTree = $this->scanLangSubDir($subDir);
+                if (!empty($subTree['_files'])) {
+                    $entry['_files'] = $subTree['_files'];
+                }
+                if (!empty($subTree['_children'])) {
+                    $entry['_children'] = $subTree['_children'];
+                }
+            }
+
+            if (!empty($entry['_topFile']) || !empty($entry['_files']) || !empty($entry['_children'])) {
+                $result[$code] = $entry;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * 递归扫描语言子目录（如 zh-cn/）
+     * @param string $dir
+     * @return array
+     */
+    private function scanLangSubDir($dir)
+    {
+        $result = ['_files' => [], '_children' => []];
+        $items = scandir($dir);
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $fullPath = $dir . DS . $item;
+            if (is_dir($fullPath)) {
+                $subTree = $this->scanLangSubDir($fullPath);
+                if (!empty($subTree['_files']) || !empty($subTree['_children'])) {
+                    $result['_children'][$item] = $subTree;
+                }
+            } elseif (is_file($fullPath) && pathinfo($item, PATHINFO_EXTENSION) === 'php') {
+                $result['_files'][] = $item;
+            }
+        }
+        if (empty($result['_files']) && empty($result['_children'])) {
+            return [];
+        }
+        return $result;
+    }
+
+    /**
+     * 加载指定语言文件内容
+     */
+    public function loadLangFile()
+    {
+        $this->request->filter(['strip_tags', 'trim']);
+        if (!$this->request->isAjax()) {
+            $this->error(__('请求无效'));
+        }
+
+        $app  = $this->request->post('app', '');
+        $path = $this->request->post('path', '');
+
+        if (empty($app) || empty($path)) {
+            $this->error('参数不完整');
+        }
+
+        // 安全检查：仅允许 application 下的合法路径
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $app)) {
+            $this->error('应用名不合法');
+        }
+        if (strpos($path, '..') !== false || strpos($path, "\0") !== false) {
+            $this->error('路径包含非法字符');
+        }
+
+        $baseDir = ROOT_PATH . 'application' . DS . $app . DS . 'lang' . DS;
+        $realBase = realpath($baseDir);
+        if (!$realBase || !is_dir($realBase)) {
+            $this->error('语言目录不存在: ' . $app);
+        }
+
+        $filePath = $baseDir . $path;
+        $realPath = realpath($filePath);
+
+        if (!$realPath || strpos($realPath, $realBase) !== 0) {
+            $this->error('文件路径非法');
+        }
+
+        if (!is_file($realPath)) {
+            $this->error('语言文件不存在');
+        }
+
+        if (pathinfo($realPath, PATHINFO_EXTENSION) !== 'php') {
+            $this->error('仅支持 .php 语言文件');
+        }
+
+        // 加载 PHP 文件返回数组
+        try {
+            $langData = include $realPath;
+        } catch (\Throwable $e) {
+            $this->error('文件加载失败: ' . $e->getMessage());
+        }
+
+        if (!is_array($langData)) {
+            $this->error('语言文件格式不正确，期望返回数组');
+        }
+
+        $keys = [];
+        foreach ($langData as $key => $value) {
+            $keys[] = [
+                'key'    => (string)$key,
+                'source' => (string)$value,
+            ];
+        }
+
+        $this->success('', null, [
+            'keys'     => $keys,
+            'filePath' => $app . '/lang/' . $path,
+            'total'    => count($keys),
+        ]);
     }
 
     /**
