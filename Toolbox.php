@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.9.23';
+    protected $version = '1.9.25';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -3098,7 +3098,7 @@ class Toolbox extends Backend
                             for (var i = 0; i < keys.length; i++) {
                                 self.rows.push({
                                     id: self.nextId++, key: keys[i].key, source: keys[i].source,
-                                    target: "", result: "pending", checked: false
+                                    target: "", result: "pending", checked: true
                                 });
                             }
                             $("#lt-breadcrumb").html("<li class=\"active\"><i class=\"fa fa-file-text-o\"></i> application/" + self.escHtml(self.currentFile) + "</li>");
@@ -3359,9 +3359,22 @@ class Toolbox extends Backend
                         content: "<div style=\"padding:10px;\"><pre style=\"max-height:380px;overflow:auto;background:#2d2d2d;color:#f8f8f2;padding:16px;border-radius:4px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;\"><code>" + self.escHtml(code) + "</code></pre></div>",
                         btn: ["复制代码", "关闭"],
                         yes: function(layerIndex) {
-                            if (navigator.clipboard) {
-                                navigator.clipboard.writeText(code).then(function() { Layer.msg("已复制到剪贴板", {icon:1}); }, function() { Layer.msg("复制失败，请手动复制", {icon:0}); });
-                            } else { Layer.msg("请手动选择复制代码", {icon:0}); }
+                            var textarea = document.createElement("textarea");
+                            textarea.value = code;
+                            textarea.style.position = "fixed";
+                            textarea.style.opacity = "0";
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            try {
+                                if (document.execCommand("copy")) {
+                                    Layer.msg("已复制到剪贴板", {icon: 1});
+                                } else {
+                                    Layer.msg("复制失败，请手动复制", {icon: 0});
+                                }
+                            } catch (e) {
+                                Layer.msg("复制失败，请手动复制", {icon: 0});
+                            }
+                            document.body.removeChild(textarea);
                         },
                         btn2: function(layerIndex) { Layer.close(layerIndex); }
                     });
