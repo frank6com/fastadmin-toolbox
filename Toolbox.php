@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.9.25';
+    protected $version = '1.10.25';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -665,6 +665,21 @@ class Toolbox extends Backend
             .doc-item-tag { flex-shrink:0; display:inline-block; padding:2px 8px; background:#f5f6f8; border:1px solid #e8ecf1; border-radius:3px; font-size:10px; color:#999; white-space:nowrap; transition:all 0.2s; }
             .doc-item:hover .doc-item-tag { background:#18bc9c; border-color:#18bc9c; color:#fff; }
 
+            /* Skill 提示区块 */
+            .tb-skill-hint { background:linear-gradient(135deg, #3A7BD5 0%, #4991F2 100%); border-radius:8px; padding:20px; margin-bottom:20px; color:#fff; }
+            .tb-skill-hint-title { font-size:16px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; }
+            .tb-skill-hint-title i { margin-right:8px; font-size:18px; }
+            .tb-skill-hint-desc { font-size:13px; opacity:0.95; margin-bottom:16px; line-height:1.6; }
+            .tb-skill-hint-actions { display:flex; gap:10px; flex-wrap:wrap; }
+            .tb-skill-hint-btn { flex:1; min-width:140px; padding:10px 16px; border:none; border-radius:4px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s ease; display:flex; align-items:center; justify-content:center; gap:6px; }
+            .tb-skill-hint-btn-primary { background:#fff; color:#667eea; }
+            .tb-skill-hint-btn-primary:hover { background:#f0f0f0; transform:translateY(-1px); }
+            .tb-skill-hint-btn-secondary { background:rgba(255,255,255,0.2); color:#fff; }
+            .tb-skill-hint-btn-secondary:hover { background:rgba(255,255,255,0.3); transform:translateY(-1px); }
+            .tb-skill-hint-btn i { font-size:14px; }
+            .tb-skill-hint-prompt-box { background:rgba(0,0,0,0.2); border-radius:4px; padding:12px; margin-top:12px; font-family:monospace; font-size:12px; line-height:1.6; word-break:break-all; max-height:120px; overflow-y:auto; }
+            .tb-skill-hint-prompt-label { font-size:11px; opacity:0.8; margin-bottom:6px; display:block; }
+
             /* 响应式 */
             @media (max-width:992px) {
                 .tb-main-row { flex-direction:column; }
@@ -673,6 +688,8 @@ class Toolbox extends Backend
             }
             @media (max-width:600px) {
                 .tool-card { width:100%; }
+                .tb-skill-hint-actions { flex-direction:column; }
+                .tb-skill-hint-btn { width:100%; }
             }
             </style>
 
@@ -692,6 +709,29 @@ class Toolbox extends Backend
                     {$toolHtml}
                 </div>
                 <div class="tb-docs-col">
+                    <div class="tb-skill-hint">
+                        <div class="tb-skill-hint-title">
+                            <i class="fa fa-rocket"></i>
+                            <span>安装 FastAdmin-skill 辅助AI开发</span>
+                        </div>
+                        <div class="tb-skill-hint-desc">
+                            通过给大模型安装官方 skill 快速完成 FastAdmin 功能开发、页面构建等任务，大幅提升开发效率。
+                        </div>
+                        <div class="tb-skill-hint-actions">
+                            <button class="tb-skill-hint-btn tb-skill-hint-btn-primary" id="btn-copy-skill-prompt">
+                                <i class="fa fa-copy"></i>
+                                复制安装命令
+                            </button>
+                            <button class="tb-skill-hint-btn tb-skill-hint-btn-secondary" id="btn-open-skillhub">
+                                <i class="fa fa-external-link"></i>
+                                打开 SkillHub
+                            </button>
+                        </div>
+                        <div class="tb-skill-hint-prompt-box">
+                            <span class="tb-skill-hint-prompt-label">安装命令：</span>
+                            <span id="skill-install-cmd">请根据 https://skillhub.cn/install/skillhub.md，安装 fastadmin-skill</span>
+                        </div>
+                    </div>
                     <div class="tb-docs-section" id="tb-docs-section">
                         <div class="tb-docs-title"><i class="fa fa-book"></i> 速查文档 <span class="tb-doc-page-info" id="tb-doc-page-info" style="margin-left:auto;font-size:11px;font-weight:400;color:#bbb;"></span></div>
                         <div id="tb-doc-list">{$docCards}</div>
@@ -755,6 +795,47 @@ class Toolbox extends Backend
                 });
 
                 renderPage(1);
+
+                /* ====== Skill 安装提示 ====== */
+                $("#btn-copy-skill-prompt").on("click", function() {
+                    var promptText = $("#skill-install-cmd").text();
+                    var $btn = $(this);
+
+                    // 使用兼容性更好的复制方法
+                    function copyToClipboard(text) {
+                        var textarea = document.createElement("textarea");
+                        textarea.value = text;
+                        textarea.style.position = "fixed";
+                        textarea.style.opacity = "0";
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        try {
+                            var ok = document.execCommand("copy");
+                            if (ok) {
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        } catch (err) {
+                            return false;
+                        } finally {
+                            document.body.removeChild(textarea);
+                        }
+                    }
+
+                    if (copyToClipboard(promptText)) {
+                        $btn.html("<i class=\"fa fa-check\"></i> 已复制");
+                        setTimeout(function() {
+                            $btn.html("<i class=\"fa fa-copy\"></i> 复制安装命令");
+                        }, 2000);
+                    } else {
+                        Layer.msg("复制失败，请手动复制", {icon: 2});
+                    }
+                });
+
+                $("#btn-open-skillhub").on("click", function() {
+                    window.open("https://skillhub.cn/skills/user_70589ad6/fastadmin-skill", "_blank");
+                });
 
                 /* ====== 工具箱自更新 ====== */
                 $(".btn-check-toolbox-update").on("click", function() {
