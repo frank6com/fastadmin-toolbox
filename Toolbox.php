@@ -19,7 +19,7 @@ use think\Db;
  */
 class Toolbox extends Backend
 {
-    protected $version = '1.10.25';
+    protected $version = '1.10.26';
 
     protected $noNeedLogin = [];
     protected $noNeedRight = ['*'];
@@ -125,7 +125,7 @@ class Toolbox extends Backend
      * 
      * 
      */
-    protected function renderTpl($title, $desc = '', $tplPath, $prepend = '', $append = '', $scripts = '', $styles = '', $showBack = true, $backUrl = '')
+    protected function renderTpl($title, $desc = '', $tplPath = '', $prepend = '', $append = '', $scripts = '', $styles = '', $showBack = true, $backUrl = '')
     {
         $viewConfig = $this->view->config;
         $viewConfig['jsname'] = '';
